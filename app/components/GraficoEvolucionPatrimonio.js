@@ -1,0 +1,106 @@
+"use client";
+
+import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
+import { fechaLocal } from "@/lib/fechas";
+import { usePrivacidad } from "./PrivacidadContext";
+
+const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+const formatoARSCompacto = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0, notation: "compact" });
+const formatoFechaCorta = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
+
+function TooltipPersonalizado({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  if (d.valorTotalARS == null) return null;
+  return (
+    <div
+      className="rounded-md border px-3 py-2 text-sm shadow-sm"
+      style={{ background: "var(--surface-1)", borderColor: "var(--border)", color: "var(--text-primary)" }}
+    >
+      <div className="font-medium">{formatoFechaCorta.format(fechaLocal(d.fecha))}</div>
+      <div style={{ color: "var(--text-secondary)" }}>{formatoARS.format(d.valorTotalARS)}</div>
+    </div>
+  );
+}
+
+/**
+ * Serie de los últimos 30 días HÁBILES de patrimonio total (ver
+ * `calcularSerieEvolucion` — sábado y domingo ni aparecen, no hace falta saltarlos).
+ * Los días previos al primer Portfolio importado se grafican en $0 a propósito —
+ * es una señal visual de cuánto historial falta, no un valor real — mientras que
+ * los huecos dentro del rango con datos (feriados, un día que no se importó) se
+ * saltan con una línea continua (`connectNulls`) en vez de caer a cero.
+ */
+export default function GraficoEvolucionPatrimonio({ serie }) {
+  const { oculto } = usePrivacidad();
+
+  if (oculto) {
+    return (
+      <div className="flex h-[220px] items-center justify-center rounded-lg border border-dashed text-xs" style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}>
+        Gráfico oculto en modo privacidad
+      </div>
+    );
+  }
+
+  if (!serie?.length) {
+    return (
+      <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+        <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera</h3>
+        <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Todavía no hay Portfolios importados.</p>
+      </div>
+    );
+  }
+
+  const primeraConDato = serie.find((d) => d.valorTotalARS != null && d.valorTotalARS > 0);
+
+  return (
+    <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+      <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera (30 días hábiles)</h3>
+      <div className="mt-2" style={{ width: "100%", height: 220 }}>
+        <ResponsiveContainer>
+          <AreaChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="rellenoEvolucionCartera" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--marca)" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="var(--marca)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke="var(--gridline)" />
+            <XAxis
+              dataKey="fecha"
+              tickFormatter={(f) => formatoFechaCorta.format(fechaLocal(f))}
+              tick={{ fontSize: 11, fill: "var(--text-muted)" }}
+              axisLine={{ stroke: "var(--border)" }}
+              tickLine={false}
+              minTickGap={28}
+            />
+            <YAxis
+              tickFormatter={(v) => formatoARSCompacto.format(v)}
+              tick={{ fontSize: 11, fill: "var(--text-muted)" }}
+              axisLine={false}
+              tickLine={false}
+              width={52}
+            />
+            <Tooltip content={<TooltipPersonalizado />} />
+            <Area
+              type="monotone"
+              dataKey="valorTotalARS"
+              stroke="var(--marca)"
+              strokeWidth={2}
+              fill="url(#rellenoEvolucionCartera)"
+              connectNulls
+              dot={false}
+              activeDot={{ r: 4 }}
+              isAnimationActive={false}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      {primeraConDato && primeraConDato.fecha !== serie[0].fecha && (
+        <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+          Los días en $0 son anteriores a tu primer Portfolio importado ({formatoFechaCorta.format(fechaLocal(primeraConDato.fecha))}) — si tenés Portfolios viejos guardados, subilos para completar el historial hacia atrás.
+        </p>
+      )}
+    </div>
+  );
+}

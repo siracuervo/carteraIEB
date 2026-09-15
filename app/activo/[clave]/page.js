@@ -1,0 +1,341 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { leerTransacciones } from "@/lib/storage";
+import { obtenerDatosCartera } from "@/lib/datosCartera";
+import { transaccionesDeActivo, factorPrecioPorClase } from "@/lib/calculos";
+import { fechaLocal } from "@/lib/fechas";
+import Logo from "@/app/components/Logo";
+import ValorSensible from "@/app/components/ValorSensible";
+import GraficoOperaciones from "@/app/components/GraficoOperaciones";
+import FiltroFechasActivo from "@/app/components/FiltroFechasActivo";
+import IconoCartera from "@/app/components/IconoCartera";
+
+export const dynamic = "force-dynamic";
+
+const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
+const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+const formatoPct = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1, signDisplay: "exceptZero" });
+const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+function formatoMoneda(valor, divisa) {
+  if (valor == null) return "—";
+  return divisa === "USD" ? formatoUSD.format(valor) : formatoARS.format(valor);
+}
+
+/**
+ * Solo tiene sentido "estimar" un importe (Precio × Cantidad) para una compra o
+ * venta real — para otras operaciones (dividendos, ajustes) no aplica, y para
+ * "paridad" el precio no está en pesos, así que tampoco sirve como estimación.
+ */
+function esEstimable(m) {
+  const op = (m.operacion || "").toUpperCase();
+  if (op.includes("PARIDAD")) return false;
+  return op.includes("COMPRA") || op.includes("VENTA");
+}
+
+function Tarjeta({ etiqueta, valor, color }) {
+  return (
+    <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+      <div className="text-xs" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
+      <div className="mt-1 text-lg font-semibold tabular-nums" style={{ color: color || "var(--text-primary)" }}>
+        {valor}
+      </div>
+    </div>
+  );
+}
+
+function IconoVentas() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="M18 9l-5 5-4-4-4 4" />
+    </svg>
+  );
+}
+
+/** Encabezado con ícono para agrupar visualmente un bloque de tarjetas. */
+function BloqueTarjetas({ icono, titulo, color, children }) {
+  return (
+    <div className="space-y-3 rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+      <div className="flex items-center gap-2" style={{ color: color || "var(--text-primary)" }}>
+        {icono}
+        <h2 className="text-sm font-medium">{titulo}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Suma varias filas de "ventas realizadas" del mismo activo en un solo resumen. */
+function agregarVentas(clave, ventas) {
+  if (!ventas.length) return null;
+  const cantidadOperada = ventas.reduce((acc, v) => acc + v.cantidadOperada, 0);
+  const cantidadSinCosto = ventas.reduce((acc, v) => acc + v.cantidadSinCosto, 0);
+  const costoTotal = ventas.reduce((acc, v) => acc + v.costoTotal, 0);
+  const importeVenta = ventas.reduce((acc, v) => acc + (v.importeVenta ?? 0), 0);
+  const gananciaRealizada = ventas.reduce((acc, v) => acc + (v.gananciaRealizada ?? 0), 0);
+  const pnlDesconocido = ventas.some((v) => v.pnlDesconocido);
+  const estimadoTipoCambio = ventas.some((v) => v.estimadoTipoCambio);
+  const fecha = ventas.reduce((max, v) => (v.fecha && (!max || v.fecha > max) ? v.fecha : max), null);
+  const { activo, ticker, claseActivo, sector, divisa } = ventas[0];
+  return {
+    clave,
+    activo,
+    ticker,
+    claseActivo,
+    sector,
+    divisa,
+    cantidadOperada,
+    cantidadSinCosto,
+    costoTotal,
+    importeVenta,
+    gananciaRealizada,
+    pnlDesconocido,
+    estimadoTipoCambio,
+    retornoPct: costoTotal > 0 ? gananciaRealizada / costoTotal : null,
+    fecha,
+  };
+}
+
+export default async function ActivoPage({ params, searchParams }) {
+  const { clave: claveParam } = await params;
+  const clave = decodeURIComponent(claveParam);
+  const { desde, hasta } = (await searchParams) || {};
+  const hayFiltroFecha = Boolean(desde || hasta);
+  function dentroDelRango(fecha) {
+    if (!fecha) return false;
+    if (desde && fecha < desde) return false;
+    if (hasta && fecha > hasta) return false;
+    return true;
+  }
+
+  const [datos, transacciones] = await Promise.all([obtenerDatosCartera(), leerTransacciones()]);
+  if (datos.vacio) notFound();
+
+  const tenencia = datos.tenencias.find((t) => t.clave === clave && !t.esCash);
+  const ventasDelActivo = datos.ventasRealizadas.filter((v) => v.clave === clave);
+  const esPosicionCerrada = !tenencia;
+  const cerradaCompleta = esPosicionCerrada ? agregarVentas(clave, ventasDelActivo) : null;
+  if (!tenencia && !cerradaCompleta) notFound();
+
+  const activo = tenencia || cerradaCompleta;
+  const factorPrecio = factorPrecioPorClase(activo.claseActivo);
+
+  const ventasFiltradas = hayFiltroFecha ? ventasDelActivo.filter((v) => dentroDelRango(v.fecha)) : ventasDelActivo;
+  const cerrada = esPosicionCerrada && ventasFiltradas.length ? agregarVentas(clave, ventasFiltradas) : null;
+  const ventasDeAbierta = !esPosicionCerrada && ventasFiltradas.length ? agregarVentas(clave, ventasFiltradas) : null;
+
+  const movimientosBase = transaccionesDeActivo(transacciones, clave);
+  const movimientos = hayFiltroFecha ? movimientosBase.filter((m) => dentroDelRango(m.fecha)) : movimientosBase;
+  const fechaInicioActivo = movimientosBase[0]?.fecha;
+  const hayImportesEstimados = movimientos.some((m) => m.importeARS == null && esEstimable(m) && m.precio != null && m.cantidad != null);
+
+  return (
+    <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
+      <Link href={esPosicionCerrada ? "/cerradas" : "/"} className="text-sm" style={{ color: "var(--text-muted)" }}>
+        ← Volver a {esPosicionCerrada ? "ventas realizadas" : "la cartera"}
+      </Link>
+
+      <div className="flex items-center gap-3">
+        <Logo ticker={activo.ticker} nombre={activo.activo} size={48} />
+        <div>
+          <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>{activo.activo}</h1>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            {activo.claseActivo}
+            {activo.sector ? ` · ${activo.sector}` : ""}
+            {esPosicionCerrada ? " · posición cerrada" : ""}
+          </p>
+        </div>
+      </div>
+
+      {tenencia ? (
+        <>
+          <BloqueTarjetas icono={<IconoCartera />} titulo="Tu posición en cartera" color="var(--marca)">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Tarjeta etiqueta="Cantidad" valor={<ValorSensible>{tenencia.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
+              <Tarjeta etiqueta="Costo promedio" valor={formatoMoneda(tenencia.costoPromedio, tenencia.divisa)} />
+              <Tarjeta etiqueta="Precio actual" valor={formatoMoneda(tenencia.precioActual, tenencia.divisa)} />
+              <Tarjeta etiqueta="Valor actual" valor={<ValorSensible>{formatoARS.format(tenencia.valorActualARS)}</ValorSensible>} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <Tarjeta
+                etiqueta="% de la cartera"
+                valor={tenencia.pctCartera != null ? formatoPct.format(tenencia.pctCartera).replace(/^\+/, "") : "—"}
+              />
+              <Tarjeta
+                etiqueta="Resultado"
+                valor={tenencia.gananciaNoRealizada != null ? <ValorSensible>{formatoARS.format(tenencia.gananciaNoRealizada)}</ValorSensible> : "—"}
+                color={tenencia.gananciaNoRealizada != null ? (tenencia.gananciaNoRealizada >= 0 ? "var(--good)" : "var(--bad)") : undefined}
+              />
+              <Tarjeta
+                etiqueta="Retorno"
+                valor={tenencia.retornoPct != null ? formatoPct.format(tenencia.retornoPct) : "—"}
+                color={tenencia.retornoPct != null ? (tenencia.retornoPct >= 0 ? "var(--good)" : "var(--bad)") : undefined}
+              />
+            </div>
+          </BloqueTarjetas>
+
+          {ventasDeAbierta && (
+            <BloqueTarjetas icono={<IconoVentas />} titulo="Ventas realizadas de este activo">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Tarjeta etiqueta="Cantidad vendida" valor={<ValorSensible>{ventasDeAbierta.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
+                <Tarjeta etiqueta="Costo vendido" valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.costoTotal, ventasDeAbierta.divisa)}</ValorSensible>} />
+                <Tarjeta etiqueta="Importe recibido" valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.importeVenta, ventasDeAbierta.divisa)}</ValorSensible>} />
+                <Tarjeta
+                  etiqueta="P&L realizado"
+                  valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.gananciaRealizada, ventasDeAbierta.divisa)}</ValorSensible>}
+                  color={ventasDeAbierta.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)"}
+                />
+              </div>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Resultado ya realizado por las ventas parciales de este activo (no incluye comisiones ni gastos) —
+                seguís teniendo posición abierta, mirá las tarjetas de arriba para el estado actual.
+              </p>
+              {ventasDeAbierta.cantidadSinCosto > 0 && (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  El costo vendido y el P&amp;L de arriba solo cubren{" "}
+                  <ValorSensible>{(ventasDeAbierta.cantidadOperada - ventasDeAbierta.cantidadSinCosto).toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>{" "}
+                  de las <ValorSensible>{ventasDeAbierta.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible> unidades vendidas — las otras{" "}
+                  <ValorSensible>{ventasDeAbierta.cantidadSinCosto.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible> se vendieron sin que tengamos registrada su compra
+                  (pueden ser anteriores a tu historial importado, o un traspaso de otro broker) — el importe recibido
+                  por ellas sí está en “Importe recibido”, por eso esa resta no coincide con el P&amp;L.
+                </p>
+              )}
+              {ventasDeAbierta.pnlDesconocido && (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Alguna de estas ventas fue una operación “paridad” sin importe real informado por IEB, así que su
+                  resultado no está incluido en el P&amp;L de arriba (aunque la cantidad sí se descontó correctamente).
+                </p>
+              )}
+              {ventasDeAbierta.estimadoTipoCambio && (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Alguna de estas ventas fue una operación “paridad” en dólares (típico en bonos) sin importe real
+                  informado por IEB — el resultado de arriba incluye una estimación usando el dólar MEP/CCL histórico
+                  del día de esa operación.
+                </p>
+              )}
+            </BloqueTarjetas>
+          )}
+        </>
+      ) : (
+        <BloqueTarjetas icono={<IconoVentas />} titulo="Ventas realizadas">
+          {cerrada ? (
+            <>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Tarjeta etiqueta="Cantidad operada" valor={<ValorSensible>{cerrada.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
+                <Tarjeta etiqueta="Costo" valor={<ValorSensible>{formatoMoneda(cerrada.costoTotal, cerrada.divisa)}</ValorSensible>} />
+                <Tarjeta etiqueta="Venta" valor={<ValorSensible>{formatoMoneda(cerrada.importeVenta, cerrada.divisa)}</ValorSensible>} />
+                <Tarjeta
+                  etiqueta="P&L realizado"
+                  valor={<ValorSensible>{formatoMoneda(cerrada.gananciaRealizada, cerrada.divisa)}</ValorSensible>}
+                  color={cerrada.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)"}
+                />
+              </div>
+              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                Costo y P&amp;L calculados por costo promedio ponderado sobre las operaciones importadas — no incluyen
+                comisiones ni gastos, porque el historial de movimientos no los trae por separado.
+              </p>
+              {cerrada.cantidadSinCosto > 0 && (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Además, el costo y el P&amp;L de arriba solo cubren{" "}
+                  <ValorSensible>{(cerrada.cantidadOperada - cerrada.cantidadSinCosto).toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>{" "}
+                  de las <ValorSensible>{cerrada.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible> unidades operadas — las otras{" "}
+                  <ValorSensible>{cerrada.cantidadSinCosto.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible> se vendieron sin que tengamos registrada su compra
+                  (pueden ser anteriores a tu historial importado, o un traspaso de otro broker) — el importe recibido por
+                  ellas sí está en “Venta”, por eso esa resta no coincide con el P&amp;L.
+                </p>
+              )}
+              {cerrada.pnlDesconocido && (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Alguna de estas ventas fue una operación “paridad” sin importe real informado por IEB, así que su
+                  resultado no está incluido en el P&amp;L de arriba (aunque la cantidad sí se descontó correctamente).
+                </p>
+              )}
+              {cerrada.estimadoTipoCambio && (
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Alguna de estas ventas fue una operación “paridad” en dólares (típico en bonos) sin importe real
+                  informado por IEB — el resultado de arriba incluye una estimación usando el dólar MEP/CCL histórico del
+                  día de esa operación.
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+              No hay ventas de este activo en el rango de fechas elegido.
+            </p>
+          )}
+        </BloqueTarjetas>
+      )}
+
+      <FiltroFechasActivo desde={desde} hasta={hasta} fechaInicio={fechaInicioActivo} />
+
+      <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+        <div className="p-4 pb-0">
+          <h2 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Compras y ventas</h2>
+          <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            {movimientos.length
+              ? `${movimientos.length} operaciones encontradas${hayFiltroFecha ? " en el rango elegido" : " en los movimientos importados"}.`
+              : hayFiltroFecha && movimientosBase.length
+                ? "No hay operaciones de este activo en el rango de fechas elegido."
+                : "No hay movimientos importados para este activo todavía — subilos en la pestaña Ventas realizadas para ver el detalle acá."}
+          </p>
+        </div>
+        {movimientos.length > 0 && (
+          <div className="p-4">
+            <GraficoOperaciones movimientos={movimientos} factorPrecio={factorPrecio} divisa={activo.divisa} />
+          </div>
+        )}
+        {movimientos.length > 0 && (
+          <div className="overflow-x-auto p-4 pt-0">
+            <table className="w-full min-w-[600px] text-sm">
+              <thead>
+                <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
+                  {["Fecha", "Operación", "Cantidad", "Precio", "Importe ARS"].map((h) => (
+                    <th key={h} className="px-3 py-2 font-medium" style={{ color: "var(--text-secondary)" }}>
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {movimientos.map((m, i) => (
+                  <tr key={m.nroOperacion || i} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+                    <td className="whitespace-nowrap px-3 py-2" style={{ color: "var(--text-secondary)" }}>
+                      {m.fecha ? formatoFecha.format(fechaLocal(m.fecha)) : "—"}
+                    </td>
+                    <td className="px-3 py-2" style={{ color: "var(--text-primary)" }}>{m.operacion}</td>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      {m.cantidad != null ? <ValorSensible>{m.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible> : "—"}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      {m.precio != null ? formatoMoneda(m.precio, m.divisa || activo.divisa) : "—"}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      {(() => {
+                        if (m.importeARS != null) return <ValorSensible>{formatoARS.format(m.importeARS)}</ValorSensible>;
+                        if (!esEstimable(m) || m.precio == null || m.cantidad == null) return "—";
+                        const estimado = -(m.cantidad * m.precio * factorPrecio);
+                        return (
+                          <>
+                            <ValorSensible>{formatoARS.format(estimado)}</ValorSensible>
+                            <div className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>estimado</div>
+                          </>
+                        );
+                      })()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {hayImportesEstimados && (
+              <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                El importe marcado “estimado” es Precio × Cantidad — esa operación es de antes de que empiece tu “toda
+                la actividad” importada, así que IEB no nos dio el importe real.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
