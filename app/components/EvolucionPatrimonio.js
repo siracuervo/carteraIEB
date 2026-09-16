@@ -51,25 +51,79 @@ function SelectorDias({ dias, seleccionado, onSeleccionar }) {
   );
 }
 
+/** Flechas ‹ › para moverse entre semanas del historial + etiqueta de la semana visible. */
+function NavegacionSemanas({ semanas, indiceSemana, onCambiar }) {
+  if (!semanas?.length) return null;
+  const semana = semanas[Math.min(indiceSemana, semanas.length - 1)];
+  const enLaPrimera = indiceSemana <= 0;
+  const enLaUltima = indiceSemana >= semanas.length - 1;
+  const estiloActivo = { background: "var(--marca-suave)", color: "var(--marca)" };
+  const estiloDeshabilitado = { background: "transparent", color: "var(--text-muted)", boxShadow: "inset 0 0 0 1px var(--border)" };
+  const claseBoton = "flex h-7 w-7 items-center justify-center rounded-md text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-40";
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-label="Semana anterior"
+        title="Semana anterior"
+        disabled={enLaPrimera}
+        onClick={() => onCambiar(indiceSemana - 1)}
+        className={claseBoton}
+        style={enLaPrimera ? estiloDeshabilitado : estiloActivo}
+      >
+        ‹
+      </button>
+      <span
+        className="min-w-24 text-center text-xs font-semibold tabular-nums"
+        style={{ color: "var(--text-muted)", textTransform: "uppercase" }}
+      >
+        {enLaUltima && indiceSemana === semanas.length - 1
+          ? "Semana actual"
+          : `Semana ${formatoFechaCorta.format(fechaLocal(semana.inicioISO))}`}
+      </span>
+      <button
+        type="button"
+        aria-label="Semana siguiente"
+        title="Semana siguiente"
+        disabled={enLaUltima}
+        onClick={() => onCambiar(indiceSemana + 1)}
+        className={claseBoton}
+        style={enLaUltima ? estiloDeshabilitado : estiloActivo}
+      >
+        ›
+      </button>
+    </div>
+  );
+}
+
 function Fila({ etiqueta, subtitulo, variacion }) {
   if (!variacion) {
     return (
       <div className="border-t pt-3 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
-        <div className="text-xs" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
+        <div className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
         <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>{subtitulo}</p>
       </div>
     );
   }
 
   const color = variacion.diffARS >= 0 ? "var(--good)" : "var(--bad)";
+  const tieneValores = variacion.desdeValorARS != null && variacion.hastaValorARS != null;
   return (
     <div className="border-t pt-3 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
       <div className="flex items-baseline justify-between gap-2">
-        <div className="text-xs" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
+        <div className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
         <div className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
           {formatoFechaCorta.format(fechaLocal(variacion.desdeFecha))} → {formatoFechaCorta.format(fechaLocal(variacion.hastaFecha))}
         </div>
       </div>
+      {tieneValores && (
+        <div className="mt-1 flex items-baseline gap-1 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          <ValorSensible>{formatoARS.format(variacion.desdeValorARS)}</ValorSensible>
+          <span aria-hidden="true">→</span>
+          <ValorSensible>{formatoARS.format(variacion.hastaValorARS)}</ValorSensible>
+        </div>
+      )}
       <div className="mt-1 flex items-baseline gap-2">
         <span className="text-xl font-semibold tabular-nums" style={{ color }}>
           {formatoPct.format(variacion.diffPct)}
@@ -96,19 +150,41 @@ function Fila({ etiqueta, subtitulo, variacion }) {
  * importado ese día y con un snapshot previo contra el cual compararlo); los grises
  * no tienen ese dato todavía.
  */
-export default function EvolucionPatrimonio({ evolucion, evolucionSemana }) {
-  const dias = evolucionSemana || [];
-  const [seleccionado, setSeleccionado] = useState(indiceHoy());
+export default function EvolucionPatrimonio({ evolucion, evolucionSemana, semanasEvolucion }) {
+  const semanas = semanasEvolucion || [];
+  const [indiceDia, setIndiceDia] = useState(indiceHoy());
+  const [indiceSemana, setIndiceSemana] = useState(() => (semanas.length ? semanas.length - 1 : 0));
 
   if (!evolucion) return null;
 
-  const diaActivo = dias[seleccionado];
+  const semana = semanas.length ? semanas[Math.min(indiceSemana, semanas.length - 1)] : null;
+  const dias = semana ? semana.dias : (evolucionSemana || []);
+
+  const cambiarSemana = (i) => {
+    if (i < 0 || i >= semanas.length) return;
+    setIndiceSemana(i);
+    const s = semanas[i];
+    if (s) {
+      const ultimoDisponible = s.dias.reduce((acc, d, j) => (d.disponible ? j : acc), -1);
+      if (ultimoDisponible >= 0) setIndiceDia(ultimoDisponible);
+    }
+  };
+
+  const diaActivo = dias[indiceDia];
+  const semanal = semana ? semana.semanal : (evolucion.semanal ?? null);
 
   return (
     <div className="flex h-full flex-col justify-center gap-3 rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera</h3>
-        {dias.length > 0 && <SelectorDias dias={dias} seleccionado={seleccionado} onSeleccionar={setSeleccionado} />}
+      <div>
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera</h3>
+          {dias.length > 0 && <SelectorDias dias={dias} seleccionado={indiceDia} onSeleccionar={setIndiceDia} />}
+        </div>
+        {semana && (
+          <div className="mt-2 flex items-center justify-between md:justify-start">
+            <NavegacionSemanas semanas={semanas} indiceSemana={indiceSemana} onCambiar={cambiarSemana} />
+          </div>
+        )}
       </div>
       <Fila
         etiqueta="Variación diaria"
@@ -122,7 +198,7 @@ export default function EvolucionPatrimonio({ evolucion, evolucionSemana }) {
       <Fila
         etiqueta="Variación semanal"
         subtitulo="Necesitás un Portfolio importado de una semana anterior para calcular la variación semanal."
-        variacion={evolucion.semanal}
+        variacion={semanal}
       />
     </div>
   );

@@ -5,9 +5,8 @@ import { importarPortafolio } from "@/app/actions";
 import ResumenCartera from "./components/ResumenCartera";
 import DestacadosCartera from "./components/DestacadosCartera";
 import EvolucionPatrimonio from "./components/EvolucionPatrimonio";
-import GraficoEvolucionPatrimonio from "./components/GraficoEvolucionPatrimonio";
-import BarraSectores from "./components/BarraSectores";
-import TablaTenencias from "./components/TablaTenencias";
+import PanelEvolucionPatrimonio from "./components/PanelEvolucionPatrimonio";
+import SelectorVista from "./components/SelectorVista";
 import FormularioImportar from "./components/FormularioImportar";
 import SeccionCarga from "./components/SeccionCarga";
 import ValorSensible from "./components/ValorSensible";
@@ -24,6 +23,35 @@ export default async function CarteraPage() {
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
+      {tenencias.length ? (
+        <>
+          <ResumenCartera resumen={datos.resumen} tipoCambioCCL={datos.tipoCambioCCL} />
+
+          {datos.fuentePosiciones === "transacciones" && (
+            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+              Todavía no importaste un Portafolio, así que el costo promedio de abajo se reconstruyó desde tus
+              movimientos y <strong>no incluye comisiones ni gastos</strong>. En cuanto importes el Portafolio, pasa
+              a usar el costo real que reporta IEB.
+            </p>
+          )}
+
+          <SelectorVista tenencias={tenencias} resultadosDia={datos.resultadosDia} />
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <EvolucionPatrimonio evolucion={datos.evolucionPatrimonio} evolucionSemana={datos.evolucionSemana} semanasEvolucion={datos.semanasEvolucion} />
+            <div className="lg:col-span-2">
+              <PanelEvolucionPatrimonio serie={datos.serieEvolucion} snapshots={datos.snapshots} />
+            </div>
+          </div>
+
+          <DestacadosCartera tenencias={tenencias} nuevasEnCartera={datos.nuevasEnCartera} />
+        </>
+      ) : (
+        <p className="py-12 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+          Todavía no hay tenencias para mostrar — subí tu Portafolio abajo para empezar.
+        </p>
+      )}
+
       <SeccionCarga
         titulo="Portafolio actual"
         abierta={!ultimoPortafolio}
@@ -51,46 +79,6 @@ export default async function CarteraPage() {
           textoBoton="Importar Portafolio"
         />
       </SeccionCarga>
-
-      {tenencias.length ? (
-        <>
-          <ResumenCartera resumen={datos.resumen} tipoCambioCCL={datos.tipoCambioCCL} />
-
-          <DestacadosCartera tenencias={tenencias} nuevasEnCartera={datos.nuevasEnCartera} />
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <EvolucionPatrimonio evolucion={datos.evolucionPatrimonio} evolucionSemana={datos.evolucionSemana} />
-            <div className="lg:col-span-2">
-              <GraficoEvolucionPatrimonio serie={datos.serieEvolucion} />
-            </div>
-          </div>
-
-          <BarraSectores datos={datos.porSector} />
-
-          {datos.fuentePosiciones === "transacciones" && (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Todavía no importaste un Portafolio, así que el costo promedio de abajo se reconstruyó desde tus
-              movimientos y <strong>no incluye comisiones ni gastos</strong>. En cuanto importes el Portafolio, pasa
-              a usar el costo real que reporta IEB.
-            </p>
-          )}
-
-          {datos.fuentePosiciones === "portafolio" && (
-            <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Cantidad y costo promedio vienen del Portfolio importado ({formatoFecha.format(fechaLocal(ultimoPortafolio.fecha))}).
-              {datos.preciosEnVivo
-                ? " El precio actual y el valor de cartera se actualizaron con cotización en vivo."
-                : " No se pudo traer cotización en vivo — el precio queda como en el Portfolio importado."}
-            </p>
-          )}
-
-          <TablaTenencias tenencias={tenencias} />
-        </>
-      ) : (
-        <p className="py-12 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-          Todavía no hay tenencias para mostrar — subí tu Portafolio arriba para empezar.
-        </p>
-      )}
     </main>
   );
 }

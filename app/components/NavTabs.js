@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// "Ventas realizadas" e "Histórico" están ocultas de momento (a pedido, no
-// borradas) — para volver a mostrarlas, descomentar estas dos líneas.
+// "Histórico" está oculta de momento (a pedido, no borrada) — para volver a
+// mostrarla, descomentar esta línea.
 const TABS = [
   { href: "/", label: "Cartera" },
-  // { href: "/cerradas", label: "Ventas realizadas" },
+  { href: "/movimientos", label: "Compras y ventas" },
   // { href: "/evolucion", label: "Histórico" },
 ];
 

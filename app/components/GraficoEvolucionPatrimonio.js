@@ -53,6 +53,24 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
 
   const primeraConDato = serie.find((d) => d.valorTotalARS != null && d.valorTotalARS > 0);
 
+  // Eje Y. Por defecto recharts arranca en 0 y si el patrimonio es grande y con poca
+  // variación la línea queda pegada arriba sin que se note el movimiento. Se acerca la
+  // escala al rango real de valores con un margen del 15% para que la evolución día a
+  // día sea la protagonista. Los días en $0 (anteriores al primer import) quedan fuera
+  // del eje de propósito: la nota de abajo ya explica que son historial faltante.
+  const valoresReales = serie.map((d) => d.valorTotalARS).filter((v) => v != null && v > 0);
+  let dominioY;
+  if (valoresReales.length) {
+    const min = Math.min(...valoresReales);
+    const max = Math.max(...valoresReales);
+    if (min === max) {
+      dominioY = [min * 0.95, max * 1.05];
+    } else {
+      const pad = (max - min) * 0.15;
+      dominioY = [Math.max(0, min - pad), max + pad];
+    }
+  }
+
   return (
     <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera (30 días hábiles)</h3>
@@ -75,6 +93,7 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
               minTickGap={28}
             />
             <YAxis
+              domain={dominioY}
               tickFormatter={(v) => formatoARSCompacto.format(v)}
               tick={{ fontSize: 11, fill: "var(--text-muted)" }}
               axisLine={false}

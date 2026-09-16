@@ -11,8 +11,35 @@ function colorParaTexto(texto) {
   return COLORES_INICIAL[hash % COLORES_INICIAL.length];
 }
 
-export default function Logo({ ticker, nombre, size = 28 }) {
+export default function Logo({ ticker, nombre, size = 28, banderaArgentina = false }) {
   const [conError, setConError] = useState(false);
+
+  if (banderaArgentina) {
+    return (
+      <span
+        className="inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border"
+        style={{
+          width: size,
+          height: size,
+          borderColor: "var(--border)",
+          borderRadius: "50%",
+          background:
+            "linear-gradient(to bottom, #74ACDF 0%, #74ACDF 33%, #ffffff 33%, #ffffff 66%, #74ACDF 66%, #74ACDF 100%)",
+        }}
+        title="Bono en pesos"
+      >
+        <span
+          style={{
+            width: size * 0.38,
+            height: size * 0.38,
+            borderRadius: "50%",
+            background: "#F6B40E",
+            boxShadow: "0 0 0 1px rgba(0, 0, 0, 0.06)",
+          }}
+        />
+      </span>
+    );
+  }
 
   if (esTickerBonoSoberano(ticker)) {
     return (

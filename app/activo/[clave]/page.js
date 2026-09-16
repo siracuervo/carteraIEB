@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { leerTransacciones } from "@/lib/storage";
 import { obtenerDatosCartera } from "@/lib/datosCartera";
 import { transaccionesDeActivo, factorPrecioPorClase } from "@/lib/calculos";
 import { fechaLocal } from "@/lib/fechas";
@@ -31,6 +30,21 @@ function esEstimable(m) {
   const op = (m.operacion || "").toUpperCase();
   if (op.includes("PARIDAD")) return false;
   return op.includes("COMPRA") || op.includes("VENTA");
+}
+
+function esCompra(m) {
+  return (m.operacion || "").toUpperCase().includes("COMPRA");
+}
+
+function esVenta(m) {
+  return (m.operacion || "").toUpperCase().includes("VENTA");
+}
+
+/** Importe en ARS de una operación, en valor absoluto, o null si no hay forma confiable. */
+function importeAbsoluto(m, factorPrecio) {
+  if (m.importeARS != null) return Math.abs(m.importeARS);
+  if (!esEstimable(m) || m.precio == null || m.cantidad == null) return null;
+  return Math.abs(m.cantidad * m.precio * factorPrecio);
 }
 
 function Tarjeta({ etiqueta, valor, color }) {
@@ -109,8 +123,9 @@ export default async function ActivoPage({ params, searchParams }) {
     return true;
   }
 
-  const [datos, transacciones] = await Promise.all([obtenerDatosCartera(), leerTransacciones()]);
+  const datos = await obtenerDatosCartera();
   if (datos.vacio) notFound();
+  const transacciones = datos.transacciones || [];
 
   const tenencia = datos.tenencias.find((t) => t.clave === clave && !t.esCash);
   const ventasDelActivo = datos.ventasRealizadas.filter((v) => v.clave === clave);
@@ -129,6 +144,21 @@ export default async function ActivoPage({ params, searchParams }) {
   const movimientos = hayFiltroFecha ? movimientosBase.filter((m) => dentroDelRango(m.fecha)) : movimientosBase;
   const fechaInicioActivo = movimientosBase[0]?.fecha;
   const hayImportesEstimados = movimientos.some((m) => m.importeARS == null && esEstimable(m) && m.precio != null && m.cantidad != null);
+
+  const compras = movimientos.filter(esCompra);
+  const ventas = movimientos.filter(esVenta);
+  const cantidadComprada = compras.reduce((acc, m) => acc + Math.abs(m.cantidad ?? 0), 0);
+  const cantidadVendida = ventas.reduce((acc, m) => acc + Math.abs(m.cantidad ?? 0), 0);
+  const totalInvertido = compras.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio) ?? 0), 0);
+  const totalRecibido = ventas.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio) ?? 0), 0);
+
+  // Resultado (P&L) de cada venta puntual, keyed por número de operación para poder
+  // cruzarlo con las filas de la tabla de movimientos (misma lógica que usa
+  // calcularVentasRealizadas, que ya resolvió costo promedio y P&L por evento).
+  const resultadoPorOperacion = new Map();
+  for (const v of ventasFiltradas) {
+    if (v.nroOperacion != null) resultadoPorOperacion.set(String(v.nroOperacion), v);
+  }
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -277,11 +307,31 @@ export default async function ActivoPage({ params, searchParams }) {
               ? `${movimientos.length} operaciones encontradas${hayFiltroFecha ? " en el rango elegido" : " en los movimientos importados"}.`
               : hayFiltroFecha && movimientosBase.length
                 ? "No hay operaciones de este activo en el rango de fechas elegido."
-                : "No hay movimientos importados para este activo todavía — subilos en la pestaña Ventas realizadas para ver el detalle acá."}
+                : "No hay movimientos importados para este activo todavía — subilos en la pestaña Compras y ventas para ver el detalle acá."}
           </p>
         </div>
         {movimientos.length > 0 && (
-          <div className="p-4">
+          <div className="grid grid-cols-2 gap-3 p-4 pb-3 sm:grid-cols-4">
+            <Tarjeta
+              etiqueta="Cantidad comprada"
+              valor={<ValorSensible>{cantidadComprada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>}
+            />
+            <Tarjeta etiqueta="Total invertido" valor={<ValorSensible>{formatoARS.format(totalInvertido)}</ValorSensible>} />
+            <Tarjeta
+              etiqueta="Cantidad vendida"
+              valor={<ValorSensible>{cantidadVendida.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>}
+            />
+            <Tarjeta etiqueta="Total recibido" valor={<ValorSensible>{formatoARS.format(totalRecibido)}</ValorSensible>} />
+          </div>
+        )}
+        {movimientos.length > 0 && (
+          <p className="px-4 pb-3 text-xs" style={{ color: "var(--text-muted)" }}>
+            {compras.length} {compras.length === 1 ? "compra" : "compras"} · {ventas.length} {ventas.length === 1 ? "venta" : "ventas"} entre las operaciones importadas.
+            Los montos se calculan por costo promedio ponderado y no incluyen comisiones ni gastos.
+          </p>
+        )}
+        {movimientos.length > 0 && (
+          <div className="p-4 pt-0">
             <GraficoOperaciones movimientos={movimientos} factorPrecio={factorPrecio} divisa={activo.divisa} />
           </div>
         )}
@@ -290,7 +340,7 @@ export default async function ActivoPage({ params, searchParams }) {
             <table className="w-full min-w-[600px] text-sm">
               <thead>
                 <tr className="border-b text-left" style={{ borderColor: "var(--border)" }}>
-                  {["Fecha", "Operación", "Cantidad", "Precio", "Importe ARS"].map((h) => (
+                  {["Fecha", "Operación", "Cantidad", "Precio", "Importe ARS", "Resultado"].map((h) => (
                     <th key={h} className="px-3 py-2 font-medium" style={{ color: "var(--text-secondary)" }}>
                       {h}
                     </th>
@@ -319,6 +369,26 @@ export default async function ActivoPage({ params, searchParams }) {
                           <>
                             <ValorSensible>{formatoARS.format(estimado)}</ValorSensible>
                             <div className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>estimado</div>
+                          </>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      {(() => {
+                        if (!esVenta(m)) return "—";
+                        const venta = resultadoPorOperacion.get(String(m.nroOperacion));
+                        if (!venta || venta.gananciaRealizada == null) return "—";
+                        const colorVenta = venta.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)";
+                        return (
+                          <>
+                            <span style={{ color: colorVenta }}>
+                              <ValorSensible>{formatoARS.format(venta.gananciaRealizada)}</ValorSensible>
+                            </span>
+                            {venta.retornoPct != null && (
+                              <div className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>
+                                {formatoPct.format(venta.retornoPct)}
+                              </div>
+                            )}
                           </>
                         );
                       })()}

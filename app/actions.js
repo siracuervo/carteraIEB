@@ -100,3 +100,54 @@ export async function importarMovimientos(prevState, formData) {
     exito: { agregadas: agregadasTotal, actualizadas: actualizadasTotal },
   };
 }
+
+function aNumero(texto) {
+  const limpio = String(texto || "").trim().replace(",", ".");
+  if (!limpio) return null;
+  const n = Number(limpio);
+  return Number.isFinite(n) ? n : null;
+}
+
+export async function agregarOperacionManual(prevState, formData) {
+  const activo = String(formData.get("activo") || "").trim();
+  const ticker = String(formData.get("ticker") || "").trim().toUpperCase();
+  const operacion = formData.get("operacion"); // "compra" | "venta"
+  const fecha = String(formData.get("fecha") || "").trim();
+  const hora = String(formData.get("hora") || "").trim();
+  const divisa = formData.get("divisa") === "USD" ? "USD" : "ARS";
+
+  const cantidad = aNumero(formData.get("cantidad"));
+  const precio = aNumero(formData.get("precio"));
+  const importe = aNumero(formData.get("importe"));
+  const cclManual = aNumero(formData.get("ccl"));
+
+  if (!activo) return { error: "Falta el nombre del activo.", exito: null };
+  if (!fecha) return { error: "Falta la fecha.", exito: null };
+  if (cantidad == null || cantidad <= 0) return { error: "La cantidad tiene que ser un número positivo.", exito: null };
+  if (precio == null || precio <= 0) return { error: "El precio tiene que ser un número positivo.", exito: null };
+  if (importe != null && importe <= 0) return { error: "El importe tiene que ser un número positivo.", exito: null };
+  if (cclManual != null && cclManual <= 0) return { error: "El dólar CCL tiene que ser un número positivo.", exito: null };
+
+  const esCompra = operacion === "compra";
+  const nueva = {
+    activo,
+    ticker: ticker || null,
+    operacion: esCompra ? "COMPRA NORMAL" : "VENTA",
+    fecha,
+    fechaLiquidacion: fecha,
+    hora: hora || null,
+    cclManual,
+    precio,
+    cantidad: esCompra ? Math.abs(cantidad) : -Math.abs(cantidad),
+    importeARS: importe ?? null,
+    divisa,
+    saldoTenencia: null,
+    fuente: "manual",
+    nroOperacion: `manual-${Date.now()}`,
+  };
+
+  await mergeTransacciones([nueva]);
+  revalidatePath("/movimientos");
+  revalidatePath("/", "layout");
+  return { error: null, exito: { activo, operacion: esCompra ? "compra" : "venta" } };
+}
