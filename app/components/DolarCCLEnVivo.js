@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
 const formatoHora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -9,6 +10,7 @@ const REFRESCO_MS = 60_000;
 export default function DolarCCLEnVivo({ referencia }) {
   const [ccl, setCcl] = useState(null);
   const [ts, setTs] = useState(null);
+  const refrescarRef = useRef(null);
 
   useEffect(() => {
     let activo = true;
@@ -24,12 +26,19 @@ export default function DolarCCLEnVivo({ referencia }) {
         // se mantiene el último valor conocido; se reintenta en el próximo ciclo
       }
     }
+    refrescarRef.current = refrescar;
+
+    function alActualizarGlobal() {
+      refrescarRef.current?.();
+    }
+    window.addEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
 
     refrescar();
     const id = setInterval(refrescar, REFRESCO_MS);
     return () => {
       activo = false;
       clearInterval(id);
+      window.removeEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
     };
   }, []);
 

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, actualizarTransaccion, claveTransaccion } from "@/lib/storage";
+import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo } from "@/lib/storage";
 import { parseArchivoIEB } from "@/lib/parseIEB";
 import { parsePortafolio } from "@/lib/parsePortafolio";
 
@@ -187,7 +187,8 @@ export async function agregarOperacionManual(prevState, formData) {
     precioUSD,
     precio,
     cantidad: esCompra ? Math.abs(cantidad) : -Math.abs(cantidad),
-    importeARS: importe ?? null,
+    // Signo igual que cantidad: negativo en compras, positivo en ventas.
+    importeARS: importe != null ? (esCompra ? -Math.abs(importe) : Math.abs(importe)) : null,
     divisa,
     saldoTenencia: null,
     fuente: "manual",
@@ -222,6 +223,7 @@ export async function editarOperacion(prevState, formData) {
   const hora = String(formData.get("hora") || "").trim();
 
   if (!clave) return { error: "No se pudo identificar la operación a editar.", exito: null };
+  if (!activo) return { error: "Falta el nombre del activo.", exito: null };
   if (!fecha) return { error: "Falta la fecha.", exito: null };
   if (cantidad == null || cantidad <= 0) return { error: "La cantidad tiene que ser un número positivo.", exito: null };
   if (precio == null || precio <= 0) return { error: "El precio tiene que ser un número positivo.", exito: null };
@@ -238,7 +240,9 @@ export async function editarOperacion(prevState, formData) {
     hora: hora || null,
     cantidad: esCompra ? Math.abs(cantidad) : -Math.abs(cantidad),
     precio,
-    importeARS: importe ?? null,
+    // El importe sigue la misma convención de signo que cantidad y que los
+    // exports de IEB: negativo en compras (sale de caja), positivo en ventas.
+    importeARS: importe != null ? (esCompra ? -Math.abs(importe) : Math.abs(importe)) : null,
     divisa,
     cclManual,
     precioUSD,
@@ -252,4 +256,33 @@ export async function editarOperacion(prevState, formData) {
   revalidatePath("/movimientos");
   revalidatePath("/", "layout");
   return { error: null, exito: { activo, operacion: esCompra ? "compra" : "venta" } };
+}
+
+/**
+ * Carga un movimiento de fondos (dinero que entra/sale por fuera del mercado).
+ * Entra a caja de inmediato: un ingreso sube el efectivo y el total ese mismo
+ * día, y una compra posterior lo descuenta por su propio ticket (sin duplicar).
+ */
+export async function agregarMovimientoFondo(prevState, formData) {
+  const fecha = String(formData.get("fecha") || "").trim();
+  const tipo = formData.get("tipo") === "retiro" ? "retiro" : "ingreso";
+  const monto = aNumero(formData.get("monto"));
+  const nota = String(formData.get("nota") || "").trim();
+
+  if (!fecha) return { error: "Falta la fecha.", exito: null };
+  if (monto == null || monto <= 0) return { error: "El monto tiene que ser un número positivo.", exito: null };
+
+  const entrada = await guardarMovimientoFondo({ fecha, tipo, monto, nota });
+  revalidatePath("/movimientos");
+  revalidatePath("/", "layout");
+  return { error: null, exito: { tipo, monto: entrada.monto, fecha } };
+}
+
+export async function quitarMovimientoFondo(id) {
+  if (!id) return { error: "Falta el movimiento.", exito: null };
+  const ok = await eliminarMovimientoFondo(String(id));
+  if (!ok) return { error: "No se encontró el movimiento.", exito: null };
+  revalidatePath("/movimientos");
+  revalidatePath("/", "layout");
+  return { error: null, exito: { eliminado: true } };
 }

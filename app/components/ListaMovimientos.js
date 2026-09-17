@@ -23,6 +23,18 @@ function esVenta(t) {
   return (t.operacion || "").toUpperCase().includes("VENTA");
 }
 
+/** Etiqueta corta para angostar la columna Operación (el nombre completo va en el tooltip). */
+function operacionCorta(t) {
+  const op = (t.operacion || "").toUpperCase().replace(/\s+/g, " ").trim();
+  if (op.includes("COMPRA") && op.includes("TRADING")) return "Compra T.";
+  if (op.includes("VENTA") && op.includes("TRADING")) return "Venta T.";
+  if (op.includes("COMPRA") && op.includes("PARIDAD")) return "Compra P.";
+  if (op.includes("VENTA") && op.includes("PARIDAD")) return "Venta P.";
+  if (op.includes("COMPRA")) return "Compra";
+  if (op.includes("VENTA")) return "Venta";
+  return t.operacion || "—";
+}
+
 function esEstimable(t) {
   const op = (t.operacion || "").toUpperCase();
   if (op.includes("PARIDAD")) return false;
@@ -135,16 +147,13 @@ export default function ListaMovimientos({ transacciones }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--gridline)" }}>
-              <th className="px-4 py-2 font-medium">Fecha</th>
-              <th className="px-4 py-2 font-medium">Activo</th>
-              <th className="px-4 py-2 font-medium">Operación</th>
-              <th className="px-4 py-2 text-right font-medium">Cantidad</th>
-              <th className="px-4 py-2 text-right font-medium">Precio</th>
-              <th className="px-4 py-2 text-right font-medium">Importe ARS</th>
-              <th
-                className="px-4 py-2 text-right font-medium"
-                style={{ position: "sticky", right: 0, background: "var(--surface-1)", zIndex: 1 }}
-              >
+              <th className="px-3 py-2 font-medium">Fecha</th>
+              <th className="px-3 py-2 font-medium">Activo</th>
+              <th className="px-3 py-2 font-medium">Operación</th>
+              <th className="px-3 py-2 text-right font-medium">Cantidad</th>
+              <th className="px-3 py-2 text-right font-medium">Precio</th>
+              <th className="px-3 py-2 text-right font-medium">Importe ARS</th>
+              <th className="px-3 py-2 text-right font-medium">
                 Editar
               </th>
             </tr>
@@ -158,35 +167,34 @@ export default function ListaMovimientos({ transacciones }) {
                 <tr
                   style={{ borderBottom: i < filtradas.length - 1 ? "1px solid var(--gridline)" : "none" }}
                 >
-                  <td className="whitespace-nowrap px-4 py-2 tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  <td className="whitespace-nowrap px-3 py-2 tabular-nums" style={{ color: "var(--text-primary)" }}>
                     {t.fecha
                       ? `${formatoFecha.format(fechaLocal(t.fecha))}${t.hora ? ` · ${t.hora}` : ""}`
                       : "—"}
                   </td>
-                  <td className="px-4 py-2" style={{ color: "var(--text-primary)" }}>
+                  <td className="px-3 py-2" style={{ color: "var(--text-primary)", minWidth: 140 }}>
                     <span className="block">{t.ticker || t.activo || "Sin nombre"}</span>
                     {t.ticker && (
                       <span className="block text-xs" style={{ color: "var(--text-muted)" }}>{t.activo}</span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-2">
-                    <span style={{ color: venta ? "var(--bad)" : "var(--good)" }}>{t.operacion}</span>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <span style={{ color: venta ? "var(--bad)" : "var(--good)" }} title={t.operacion}>{operacionCorta(t)}</span>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
                     {t.cantidad != null ? t.cantidad.toLocaleString("es-AR") : "—"}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
                     {formatoPrecio(t.precio, t.divisa || "ARS", clasificar({ activo: t.activo, ticker: t.ticker, operacion: t.operacion }).claseActivo)}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
                     {importe}
                     {estimado && (
                       <span className="ml-1 text-xs" style={{ color: "var(--text-muted)" }}>(est.)</span>
                     )}
                   </td>
                   <td
-                    className="whitespace-nowrap px-4 py-2 text-right"
-                    style={{ position: "sticky", right: 0, background: "var(--surface-1)" }}
+                    className="whitespace-nowrap px-3 py-2 text-right"
                   >
                     <button
                       type="button"

@@ -33,6 +33,14 @@ export default function FormEditarOperacion({ transaccion, onCancelar }) {
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Nombre del activo *
+          <input type="text" name="activo" required defaultValue={transaccion.activo || ""} className="rounded border px-2 py-1 text-sm" style={estiloInput} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Ticker (opcional)
+          <input type="text" name="ticker" defaultValue={transaccion.ticker || ""} placeholder="Ej. NVDA" className="rounded border px-2 py-1 text-sm" style={estiloInput} />
+        </label>
+        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Fecha *
           <input type="date" name="fecha" required defaultValue={transaccion.fecha || ""} className="rounded border px-2 py-1 text-sm" style={estiloInput} />
         </label>

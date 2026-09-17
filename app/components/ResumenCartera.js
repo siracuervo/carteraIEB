@@ -1,9 +1,10 @@
 import ValorSensible from "./ValorSensible";
 import DolarCCLEnVivo from "./DolarCCLEnVivo";
 import ValorEnDolarOficial from "./ValorEnDolarOficial";
+import BotonActualizarTodo from "./BotonActualizarTodo";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
-const formatoPct = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1, signDisplay: "exceptZero" });
+const formatoProporcion = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1 });
 
 function Tarjeta({ etiqueta, valor, color, style }) {
   return (
@@ -23,13 +24,11 @@ export default function ResumenCartera({ resumen, tipoCambioCCL }) {
   const {
     valorTotalARS,
     invertidoTotalARS,
-    gananciaTotalARS,
-    retornoTotalPct,
     dividendosTotalARS,
     conversionIncompleta,
     efectivoARS,
+    composicion,
   } = resumen;
-  const colorGanancia = gananciaTotalARS >= 0 ? "var(--good)" : "var(--bad)";
 
   return (
     <div>
@@ -42,13 +41,16 @@ export default function ResumenCartera({ resumen, tipoCambioCCL }) {
             </div>
             <ValorEnDolarOficial valorARS={valorTotalARS} />
           </div>
-          <DolarCCLEnVivo referencia={tipoCambioCCL} />
+          <div className="flex flex-col items-end gap-2">
+            <BotonActualizarTodo texto="actualizar todo" />
+            <DolarCCLEnVivo referencia={tipoCambioCCL} />
+          </div>
         </div>
       </div>
 
       <div className={`mt-3 grid gap-3 ${efectivoARS > 0 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2"}`}>
         <Tarjeta
-          etiqueta="Invertido (costo)"
+          etiqueta="Invertido"
           valor={<ValorSensible>{formatoARS.format(invertidoTotalARS)}</ValorSensible>}
           style={efectivoARS > 0 ? undefined : { gridColumn: "1 / -1" }}
         />
@@ -56,14 +58,18 @@ export default function ResumenCartera({ resumen, tipoCambioCCL }) {
           <Tarjeta etiqueta="Efectivo" valor={<ValorSensible>{formatoARS.format(efectivoARS)}</ValorSensible>} />
         )}
         <Tarjeta
-          etiqueta="Resultado sobre posiciones activas"
-          valor={<ValorSensible>{formatoARS.format(gananciaTotalARS)}</ValorSensible>}
-          color={colorGanancia}
-        />
-        <Tarjeta
-          etiqueta="Retorno sobre posiciones activas"
-          valor={retornoTotalPct == null ? "—" : formatoPct.format(retornoTotalPct)}
-          color={retornoTotalPct == null ? undefined : colorGanancia}
+          etiqueta="Composición de cartera"
+          style={{ gridColumn: "span 2" }}
+          valor={
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" title="Proporciones sobre el valor en ARS de las posiciones valuadas">
+              {(composicion ?? []).map((grupo) => (
+                <div key={grupo.etiqueta}>
+                  <div className="text-xs font-normal" style={{ color: "var(--text-secondary)" }}>{grupo.etiqueta}</div>
+                  <ValorSensible>{formatoProporcion.format(grupo.pct)}</ValorSensible>
+                </div>
+              ))}
+            </div>
+          }
         />
       </div>
 

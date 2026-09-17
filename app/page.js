@@ -16,8 +16,9 @@ export const dynamic = "force-dynamic";
 const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
-export default async function CarteraPage() {
-  const [datos, portafolioHistorial] = await Promise.all([obtenerDatosCartera(), leerPortafolioHistorial()]);
+export default async function CarteraPage({ searchParams }) {
+  const { dia, diaTenencia } = await searchParams;
+  const [datos, portafolioHistorial] = await Promise.all([obtenerDatosCartera(dia || null, diaTenencia || null), leerPortafolioHistorial()]);
   const ultimoPortafolio = portafolioHistorial[portafolioHistorial.length - 1] || null;
   const tenencias = datos.vacio ? [] : datos.tenencias;
 
@@ -35,7 +36,15 @@ export default async function CarteraPage() {
             </p>
           )}
 
-          <SelectorVista tenencias={tenencias} resultadosDia={datos.resultadosDia} />
+          <SelectorVista
+            tenencias={tenencias}
+            resultadosDia={datos.resultadosDia}
+            diasOperados={datos.diasOperados}
+            dia={datos.dia}
+            tenenciasCierre={datos.tenenciasCierre}
+            diasTenencia={datos.diasTenencia}
+            diaTenencia={datos.diaTenencia}
+          />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <EvolucionPatrimonio evolucion={datos.evolucionPatrimonio} evolucionSemana={datos.evolucionSemana} semanasEvolucion={datos.semanasEvolucion} />

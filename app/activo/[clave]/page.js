@@ -164,13 +164,14 @@ export default async function ActivoPage({ params, searchParams }) {
   const totalInvertido = compras.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio) ?? 0), 0);
   const totalRecibido = ventas.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio) ?? 0), 0);
 
-  // Resultado (P&L) de cada venta puntual, keyed por número de operación para poder
-  // cruzarlo con las filas de la tabla de movimientos (misma lógica que usa
-  // calcularVentasRealizadas, que ya resolvió costo promedio y P&L por evento).
-  const resultadoPorOperacion = new Map();
-  for (const v of ventasFiltradas) {
-    if (v.nroOperacion != null) resultadoPorOperacion.set(String(v.nroOperacion), v);
-  }
+  const ventasPorId = new Map(ventasDelActivo.map((v) => [v.id, v]));
+  const resultadoPorMovimiento = new Map();
+  movimientosBase
+    .filter((m) => ["VENTA", "VENTA TRADING", "VENTA PARIDAD"].includes((m.operacion || "").toUpperCase().replace(/\s+/g, " ").trim()))
+    .forEach((m, indice) => {
+      const id = `${clave}__${m.nroOperacion ?? `${m.fecha}-${indice}`}`;
+      resultadoPorMovimiento.set(m, ventasPorId.get(id));
+    });
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -388,7 +389,7 @@ export default async function ActivoPage({ params, searchParams }) {
                     <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
                       {(() => {
                         if (!esVenta(m)) return "—";
-                        const venta = resultadoPorOperacion.get(String(m.nroOperacion));
+                        const venta = resultadoPorMovimiento.get(m);
                         if (!venta || venta.gananciaRealizada == null) return "—";
                         const colorVenta = venta.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)";
                         return (

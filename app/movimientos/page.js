@@ -1,9 +1,11 @@
-import { leerTransacciones, leerPortafolioHistorial, claveTransaccion } from "@/lib/storage";
+import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
 import { importarMovimientos } from "@/app/actions";
 import FormularioImportar from "@/app/components/FormularioImportar";
 import FormularioOperacionManual from "@/app/components/FormularioOperacionManual";
+import FormularioFondos from "@/app/components/FormularioFondos";
+import ListaFondos from "@/app/components/ListaFondos";
 import ListaActivos from "@/app/components/ListaActivos";
 import ListaMovimientos from "@/app/components/ListaMovimientos";
 import SeccionCarga from "@/app/components/SeccionCarga";
@@ -28,7 +30,7 @@ function esDiaHabil(fecha) {
 }
 
 export default async function MovimientosPage() {
-  const [transaccionesRaw, portafolioHistorial] = await Promise.all([leerTransacciones(), leerPortafolioHistorial()]);
+  const [transaccionesRaw, portafolioHistorial, movimientosFondos] = await Promise.all([leerTransacciones(), leerPortafolioHistorial(), leerMovimientosFondos()]);
 
   // Misma resolución de tickers que usan el dashboard y las páginas de activo, para
   // que la clave de cada operación coincida con la del enlace /activo/[clave].
@@ -51,7 +53,19 @@ export default async function MovimientosPage() {
 
   const ordenadas = [...conClave].sort((a, b) => {
     const porFecha = (b.fecha || "").localeCompare(a.fecha || "");
-    return porFecha !== 0 ? porFecha : Number(b.nroOperacion ?? 0) - Number(a.nroOperacion ?? 0);
+    if (porFecha !== 0) return porFecha;
+    // Dentro del día, lo más reciente primero; sin hora al final (espejo del
+    // criterio ascendente, donde van al cierre del día). Ticker desempatas.
+    const horaA = a.hora || null;
+    const horaB = b.hora || null;
+    if (horaA && horaB && horaA !== horaB) return horaB.localeCompare(horaA);
+    if (!!horaA !== !!horaB) return horaA ? -1 : 1;
+    const nroA = Number(a.nroOperacion);
+    const nroB = Number(b.nroOperacion);
+    const ordA = Number.isFinite(nroA) ? nroA : 0;
+    const ordB = Number.isFinite(nroB) ? nroB : 0;
+    if (ordB !== ordA) return ordB - ordA;
+    return (a.ticker || a.activo || "").localeCompare(b.ticker || b.activo || "");
   });
 
   const activosOperados = new Map();
@@ -164,6 +178,18 @@ export default async function MovimientosPage() {
         descripcion="Para alguna compra o venta que IEB no tenga en tus exports, o que quieras corregir. Se guarda igual que el resto de los movimientos y aparece en la página del activo."
       >
         <FormularioOperacionManual />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Ingresos y retiros de fondos"
+        abierta={false}
+        estadoActual={movimientosFondos.length ? `${movimientosFondos.length} movimientos` : null}
+        descripcion="Plata que entra o sale por fuera del mercado (depósitos, transferencias, retiros). Entra a caja de inmediato: un ingreso sube el efectivo y el total ese mismo día, y si después comprás con esa plata, la compra lo descuenta por su propio ticket — no se duplica."
+      >
+        <div className="space-y-4">
+          <FormularioFondos />
+          <ListaFondos fondos={movimientosFondos} />
+        </div>
       </SeccionCarga>
 
       <SeccionCarga

@@ -2,6 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { CLASES } from "@/lib/clasificacion";
 import { factorPrecioPorClase } from "@/lib/calculos";
 import Logo from "./Logo";
@@ -9,6 +10,11 @@ import ValorSensible from "./ValorSensible";
 import BotonOrden from "./BotonOrden";
 import IconoCartera from "./IconoCartera";
 import EditarPPP from "./EditarPPP";
+import CalendarioDias from "./CalendarioDias";
+import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
+import { fechaLocal } from "@/lib/fechas";
+
+const formatoFechaDia = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "2-digit", month: "long" });
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoARS2 = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
@@ -18,7 +24,6 @@ const formatoPrecioARS = new Intl.NumberFormat("es-AR", { style: "currency", cur
 const formatoPrecioARSsinDecimales = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const formatoPct = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1, signDisplay: "exceptZero" });
-const formatoHora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 const REFRESCO_PRECIOS_MS = 60_000;
 
@@ -111,13 +116,30 @@ const GRUPOS_TENENCIAS = [
   },
 ];
 
-export default function TablaTenencias({ tenencias }) {
+export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, esHistorico }) {
   const [orden, setOrden] = useState({ columna: "valor", direccion: "desc" });
   const [live, setLive] = useState(null);
   const [modo, setModo] = useState("cedear");
   const [anchos, setAnchos] = useState({});
   const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set(["rentaVariable", "rentaFija", "efectivo"]));
   const tablaRef = useRef(null);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  // En vista histórica no hay cotización viva: todo se valúa al cierre del día.
+  // (el estado `live` puede traer precios de una visita previa a la vista en vivo;
+  // se ignora por completo para no contaminar ni filas ni total con valores vivos)
+  const modoEfectivo = esHistorico ? "cedear" : modo;
+  const liveVisible = esHistorico ? null : live;
+
+  function cambiarDiaTenencia(nuevoDia) {
+    const params = new URLSearchParams(searchParams);
+    if (nuevoDia) params.set("diaTenencia", nuevoDia);
+    else params.delete("diaTenencia");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  const etiquetaDiaTenencia = diaTenencia ? formatoFechaDia.format(fechaLocal(diaTenencia)) : "";
   const arrastre = useRef(null);
   const refrescarRef = useRef(null);
   const [refrescando, setRefrescando] = useState(false);
@@ -174,7 +196,7 @@ export default function TablaTenencias({ tenencias }) {
   );
 
   useEffect(() => {
-    if (!tickers.length) return;
+    if (!tickers.length || esHistorico) return;
     let activo = true;
 
     async function refrescar() {
@@ -189,13 +211,19 @@ export default function TablaTenencias({ tenencias }) {
     }
     refrescarRef.current = refrescar;
 
+    function alActualizarGlobal() {
+      refrescarRef.current?.();
+    }
+    window.addEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
+
     refrescar();
     const id = setInterval(refrescar, REFRESCO_PRECIOS_MS);
     return () => {
       activo = false;
       clearInterval(id);
+      window.removeEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
     };
-  }, [tickers, modo]);
+  }, [tickers, modo, esHistorico]);
 
   useEffect(() => {
     // Medimos el contenido real en modo auto en cada carga y fijamos los anchos,
@@ -274,49 +302,56 @@ export default function TablaTenencias({ tenencias }) {
   }
 
   function precioParaOrden(t) {
-    const cedear = live?.cedear?.[t.ticker];
-    const usa = live?.usa?.[t.ticker];
-    return modo === "usa" ? (usa?.precio ?? null) : (cedear?.precio ?? t.precioActual);
+    const cedear = liveVisible?.cedear?.[t.ticker];
+    const usa = liveVisible?.usa?.[t.ticker];
+    return modoEfectivo === "usa" ? (usa?.precio ?? null) : (cedear?.precio ?? t.precioActual);
   }
 
   /** Valor de una tenencia con el precio en vivo que se muestra: precio × cantidad × factor (÷ dólar en modo USA). */
   function valorDe(t) {
     if (t.esCash) return t.valorActualARS;
-    const ccl = live?.ccl ?? null;
-    const datoCedear = t.ticker && live?.cedear ? live.cedear[t.ticker] : null;
+    const ccl = liveVisible?.ccl ?? null;
+    const datoCedear = t.ticker && liveVisible?.cedear ? liveVisible.cedear[t.ticker] : null;
     // El valor siempre se calcula con la cotización LOCAL en ARS (datoCedear.precio),
     // que ya incluye el ratio del CEDEAR contra el subyacente. En modo USA solo cambia
     // la MONEDA mostrada (÷ CCL) — no se multiplica por el precio USD del subyacente.
     const precioLocal = datoCedear?.precio ?? t.precioActual;
     const factorPrecio = factorPrecioPorClase(t.claseActivo);
-    if (precioLocal == null) return modo === "usa" && ccl ? t.valorActualARS / ccl : t.valorActualARS;
+    if (precioLocal == null) return modoEfectivo === "usa" && ccl ? t.valorActualARS / ccl : t.valorActualARS;
     const enARS = precioLocal * t.cantidad * factorPrecio;
-    return modo === "usa" && ccl ? enARS / ccl : enARS;
+    return modoEfectivo === "usa" && ccl ? enARS / ccl : enARS;
+  }
+
+  function costoParaOrden(t) {
+    if (modoEfectivo !== "usa") return t.costoPromedio;
+    const precioLocal = liveVisible?.cedear?.[t.ticker]?.precio;
+    const precioUSA = liveVisible?.usa?.[t.ticker]?.precio;
+    const ccl = liveVisible?.ccl;
+    if (!(precioLocal > 0) || !(precioUSA > 0) || !(ccl > 0) || !(t.costoPromedioUSD > 0)) return null;
+    const ratioCedear = precioLocal / (precioUSA * ccl);
+    return t.costoPromedioUSD / ratioCedear;
+  }
+
+  function retornoParaOrden(t) {
+    if (t.esCash) return t.retornoPct;
+    const precio = precioParaOrden(t);
+    const costo = costoParaOrden(t);
+    if (!Number.isFinite(precio) || !Number.isFinite(costo) || costo <= 0) return null;
+    return precio / costo - 1;
   }
 
   function renderFila(t) {
     const pctCartera = t.pctCartera ?? null;
     const esRentaFija = t.claseActivo === CLASES.BONO_SOBERANO;
     const banderaArgentina = esRentaFija && t.divisa === "ARS";
-    const datoCedear = t.ticker && live?.cedear ? live.cedear[t.ticker] : null;
-    const datoUSA = t.ticker && live?.usa ? live.usa[t.ticker] : null;
-    const ccl = live?.ccl ?? null;
-    const precioMostrado = modo === "usa" ? (datoUSA?.precio ?? null) : (datoCedear?.precio ?? t.precioActual);
-    const monedaMostrada = modo === "usa" ? "USD" : (datoCedear?.moneda || t.divisa || "ARS");
-    const ratioCedear =
-      datoCedear?.precio && datoUSA?.precio && ccl ? datoCedear.precio / (datoUSA.precio * ccl) : null;
-    // costo en la misma unidad que el precio USD (por acción subyacente):
-    // costoPromedioUSD ya convierte cada compra con el CCL de su propio día;
-    // / ratio lo expresa por acción subyacente.
-    const costoPromedioMostrado =
-      modo === "usa"
-        ? t.costoPromedioUSD != null && ratioCedear
-          ? t.costoPromedioUSD / ratioCedear
-          : null
-        : t.costoPromedio;
-    const monedaCosto = modo === "usa" ? "USD" : t.divisa;
+    const datoCedear = t.ticker && liveVisible?.cedear ? liveVisible.cedear[t.ticker] : null;
+    const precioMostrado = precioParaOrden(t);
+    const monedaMostrada = modoEfectivo === "usa" ? "USD" : (datoCedear?.moneda || t.divisa || "ARS");
+    const costoPromedioMostrado = costoParaOrden(t);
+    const retornoFila = retornoParaOrden(t);
+    const monedaCosto = modoEfectivo === "usa" ? "USD" : t.divisa;
     const valorMostrado = valorDe(t);
-    const monedaValor = modo === "usa" ? "USD" : "ARS";
+    const monedaValor = modoEfectivo === "usa" ? "USD" : "ARS";
     return (
       <Fragment key={t.clave}>
         <tr className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
@@ -346,9 +381,9 @@ export default function TablaTenencias({ tenencias }) {
           </td>
           <td
             className="px-2 py-1.5 align-top tabular-nums"
-            style={{ color: t.retornoPct == null ? "var(--text-muted)" : t.retornoPct >= 0 ? "var(--good)" : "var(--bad)" }}
+            style={{ color: retornoFila == null ? "var(--text-muted)" : retornoFila >= 0 ? "var(--good)" : "var(--bad)" }}
           >
-            {t.retornoPct == null ? "—" : formatoPct.format(t.retornoPct)}
+            {retornoFila == null ? "—" : formatoPct.format(retornoFila)}
           </td>
           <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: t.diasTenencia == null ? "var(--text-muted)" : "var(--text-secondary)" }}>
             {t.esCash || t.diasTenencia == null ? "—" : `${Math.round(t.diasTenencia)} ${Math.round(t.diasTenencia) === 1 ? "día" : "días"}`}
@@ -367,7 +402,7 @@ export default function TablaTenencias({ tenencias }) {
                     CCL {formatoARS2.format(t.cclCompra)}
                   </div>
                 )}
-                {t.pppPendienteIEB && (
+                {t.pppPendienteIEB && !esHistorico && (
                   <div className="mt-0.5">
                     {t.costoManual && (
                       <div className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>cargado a mano</div>
@@ -394,17 +429,19 @@ export default function TablaTenencias({ tenencias }) {
     const signo = orden.direccion === "asc" ? 1 : -1;
     // En modo USA solo tienen equivalente en dólares los CEDEARs; el resto (bonos,
     // efectivo) no se muestra acá.
-    const visibles = modo === "usa" ? tenencias.filter((t) => t.claseActivo === CLASES.CEDEAR) : tenencias;
+    const visibles = modoEfectivo === "usa" ? tenencias.filter((t) => t.claseActivo === CLASES.CEDEAR) : tenencias;
     return [...visibles].sort((a, b) => {
-      const va = orden.columna === "precio" ? precioParaOrden(a) : campo(a);
-      const vb = orden.columna === "precio" ? precioParaOrden(b) : campo(b);
+      const obtenerValor = orden.columna === "precio" ? precioParaOrden : orden.columna === "costo" ? costoParaOrden : orden.columna === "retorno" ? retornoParaOrden : campo;
+      const va = obtenerValor(a);
+      const vb = obtenerValor(b);
+      if (va == null && vb == null) return 0;
       if (va == null) return 1;
       if (vb == null) return -1;
       const diferencia = typeof va === "string" ? va.localeCompare(vb) : va - vb;
       return diferencia * signo;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenencias, orden, live, modo]);
+  }, [tenencias, orden, liveVisible, modoEfectivo]);
 
   const grupos = useMemo(
     () => GRUPOS_TENENCIAS.map((g) => ({ ...g, filas: filas.filter(g.esMiembro) })).filter((g) => g.filas.length > 0),
@@ -414,44 +451,57 @@ export default function TablaTenencias({ tenencias }) {
   return (
     <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       {tickers.length > 0 && (
-        <div className="grid grid-cols-1 items-center gap-2 px-4 pt-4 sm:grid-cols-[1fr_auto_1fr]">
-          <h2 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Tenencias</h2>
-          {live?.ts && (
-            <span className="flex items-center justify-center gap-2 text-xs sm:order-none order-last" style={{ color: "var(--text-muted)" }}>
-              <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: "var(--good)" }} />
-              actualizado {formatoHora.format(live.ts)}
-              <button
-                type="button"
-                onClick={() => refrescarRef.current?.()}
-                title="Refrescar precios ahora (sin esperar al intervalo de 60 s)"
-                className="cursor-pointer rounded-md border px-2 py-0.5 text-xs font-medium transition-colors"
-                style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--marca)"; e.currentTarget.style.borderColor = "var(--marca)"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-muted)"; e.currentTarget.style.borderColor = "var(--border)"; }}
-              >
-                Actualizar
-              </button>
+        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+              Total:
             </span>
-          )}
-          <div className="flex flex-wrap items-center justify-start gap-3 sm:justify-end">
-            <div className="flex rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
+            <span className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+              <ValorSensible>
+                {formatoMoneda(
+                  filas.reduce((acc, t) => acc + (valorDe(t) || 0), 0),
+                  modoEfectivo === "usa" ? "USD" : "ARS"
+                )}
+              </ValorSensible>
+            </span>
+            {esHistorico && etiquetaDiaTenencia && (
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                {etiquetaDiaTenencia.charAt(0).toUpperCase() + etiquetaDiaTenencia.slice(1)}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+            <CalendarioDias dias={diasTenencia} dia={diaTenencia} onElegir={cambiarDiaTenencia} />
+            {esHistorico ? (
               <button
                 type="button"
-                onClick={() => cambiarModo("cedear")}
-                className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                style={modo === "cedear" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
+                onClick={() => cambiarDiaTenencia(null)}
+                title="Volver a la posición actual en vivo"
+                className="cursor-pointer rounded-lg border px-2.5 py-1.5 text-xs font-medium"
+                style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
               >
-                PESOS ARGENTINOS
+                ← En vivo
               </button>
-              <button
-                type="button"
-                onClick={() => cambiarModo("usa")}
-                className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                style={modo === "usa" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
-              >
-                USA · USD
-              </button>
-            </div>
+            ) : (
+              <div className="flex rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={() => cambiarModo("cedear")}
+                  className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                  style={modo === "cedear" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
+                >
+                  PESOS ARGENTINOS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => cambiarModo("usa")}
+                  className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                  style={modo === "usa" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
+                >
+                  USA · USD
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -482,16 +532,16 @@ export default function TablaTenencias({ tenencias }) {
               </ColumnaConAncho>
               <ColumnaConAncho columna="precio" ancho={anchos.precio} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
                 <BotonOrden columna="precio" ordenActual={orden} onClick={alHacerClick}>
-                  Precio actual {modo === "usa" ? "(USD)" : "(ARS)"}
+                  {esHistorico ? "Precio cierre (ARS)" : <>Precio actual {modoEfectivo === "usa" ? "(USD)" : "(ARS)"}</>}
                 </BotonOrden>
               </ColumnaConAncho>
               <ColumnaConAncho columna="costo" ancho={anchos.costo} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
                 <BotonOrden columna="costo" ordenActual={orden} onClick={alHacerClick}>
-                  Costo prom. {modo === "usa" ? "(USD)" : "(ARS)"}
+                  Costo prom. {modoEfectivo === "usa" ? "(USD)" : "(ARS)"}
                 </BotonOrden>
               </ColumnaConAncho>
               <ColumnaConAncho columna="valor" ancho={anchos.valor} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
-                <BotonOrden columna="valor" ordenActual={orden} onClick={alHacerClick}>Posición {modo === "usa" ? "(USD)" : "(ARS)"}</BotonOrden>
+                <BotonOrden columna="valor" ordenActual={orden} onClick={alHacerClick}>Posición {modoEfectivo === "usa" ? "(USD)" : "(ARS)"}</BotonOrden>
               </ColumnaConAncho>
               <ColumnaConAncho columna="pct" ancho={anchos.pct} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5" title="% de tu cartera total">
                 <BotonOrden columna="pct" ordenActual={orden} onClick={alHacerClick}>
@@ -525,7 +575,7 @@ export default function TablaTenencias({ tenencias }) {
                         </span>
                         {totalGrupo > 0 && (
                           <span className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                            {formatoMoneda(totalGrupoMostrado, modo === "usa" ? "USD" : "ARS")}
+                            {formatoMoneda(totalGrupoMostrado, modoEfectivo === "usa" ? "USD" : "ARS")}
                           </span>
                         )}
                       </button>

@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 // mostrarla, descomentar esta línea.
 const TABS = [
   { href: "/", label: "Cartera" },
-  { href: "/movimientos", label: "Compras y ventas" },
+  { href: "/movimientos", label: "Movimientos" },
   // { href: "/evolucion", label: "Histórico" },
 ];
 

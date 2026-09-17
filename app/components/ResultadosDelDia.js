@@ -1,15 +1,17 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Logo from "./Logo";
 import ValorSensible from "./ValorSensible";
+import CalendarioDias from "./CalendarioDias";
+import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 import { fechaLocal } from "@/lib/fechas";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoARS2 = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
 const formatoFechaDia = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "2-digit", month: "long" });
 const formatoFechaCorta = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
-const formatoHora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 const REFRESCO_PRECIOS_MS = 60_000;
 
@@ -24,28 +26,35 @@ function Cantidad({ trade }) {
   );
 }
 
-export default function ResultadosDelDia({ resultados }) {
+export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
   const [live, setLive] = useState(null);
-  const [colapsados, setColapsados] = useState(() => {
-    const inicial = new Set();
-    for (const t of resultados?.trades || []) {
-      if (t.clave) inicial.add(t.clave);
-    }
-    return inicial;
-  });
+  // Grupos siempre colapsados por defecto: se recuerdan los expandidos (vacío
+  // inicial) y se resetean al cambiar de día.
+  const [expandidos, setExpandidos] = useState(() => new Set());
+  const [expandidosParaDia, setExpandidosParaDia] = useState(resultados?.dia);
+  if (expandidosParaDia !== resultados?.dia) {
+    setExpandidosParaDia(resultados?.dia);
+    setExpandidos(new Set());
+  }
   const trades = useMemo(() => resultados?.trades || [], [resultados]);
   const rendimientos = useMemo(() => resultados?.rendimientosTenencia || [], [resultados]);
   const totals = resultados?.totals || null;
-  const subtotalRendimiento = rendimientos.reduce((acc, r) => acc + (r.computa === false ? 0 : r.resultado ?? 0), 0);
-  const hayRendimientosComputables = rendimientos.some((r) => r.computa !== false);
+  // Variación de lo no operado ese día (renta fija excluida del mosaico).
+  const totalSinOperar = useMemo(
+    () => rendimientos.reduce((acc, r) => acc + (r.computa === false ? 0 : r.resultado ?? 0), 0),
+    [rendimientos]
+  );
 
   const tickers = useMemo(
     () => Array.from(new Set(trades.filter((t) => t.tipo === "compra" && t.ticker).map((t) => t.ticker))),
     [trades]
   );
 
+  const esUltimo = resultados?.esUltimo ?? false;
+  const refrescarRef = useRef(null);
+
   useEffect(() => {
-    if (!tickers.length) return;
+    if (!tickers.length || !esUltimo) return;
     let activo = true;
 
     async function refrescar() {
@@ -58,18 +67,26 @@ export default function ResultadosDelDia({ resultados }) {
         // se mantiene el último valor conocido; se reintenta en el próximo ciclo
       }
     }
+    refrescarRef.current = refrescar;
+
+    function alActualizarGlobal() {
+      refrescarRef.current?.();
+    }
+    window.addEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
 
     refrescar();
     const id = setInterval(refrescar, REFRESCO_PRECIOS_MS);
     return () => {
       activo = false;
       clearInterval(id);
+      window.removeEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
     };
-  }, [tickers]);
+  }, [tickers, esUltimo]);
 
   function precioActualDe(t) {
     if (t.tipo !== "compra") return null;
-    return live?.cedear?.[t.ticker]?.precio ?? t.precioActual ?? null;
+    const vivo = esUltimo ? live?.cedear?.[t.ticker]?.precio : null;
+    return vivo ?? t.precioActual ?? null;
   }
 
   function resultadoDe(t) {
@@ -103,7 +120,14 @@ export default function ResultadosDelDia({ resultados }) {
 
   function porcentajeDe(t) {
     if (t.tipo !== "venta" || t.resultado == null) return null;
-    const base = t.costoBase ?? (t.precioCompra > 0 ? t.precioCompra * t.cantidad : null);
+    // costoBase va en escala cruda (cada 100 en bonos); se lo lleva a ARS para
+    // dividir por el resultado. El fallback precioCompra×cantidad ya está en ARS.
+    const base =
+      t.costoBase != null
+        ? t.costoBase * (t.factorPrecio ?? 1)
+        : t.precioCompra > 0
+          ? t.precioCompra * t.cantidad
+          : null;
     return base > 0 ? t.resultado / base : null;
   }
 
@@ -114,12 +138,19 @@ export default function ResultadosDelDia({ resultados }) {
   }
 
   const totalNoRealizado = useMemo(() => {
-    if (totals && totals.noRealizado != null && !live) return totals.noRealizado;
+    if (totals && totals.noRealizado != null && !esUltimo) return totals.noRealizado;
     return trades.reduce((acc, t) => acc + (computaPendienteDe(t) ?? 0), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trades, live]);
+  }, [trades, live, esUltimo]);
 
-  const total = (totals?.realizado ?? 0) + totalNoRealizado + (totals?.rendimientoTenencia ?? 0);
+  const total = (totals?.realizado ?? 0) + totalNoRealizado + totalSinOperar;
+
+  // Orden cronológico primero (fecha, hora; sin hora al cierre del día) y ticker
+  // como desempate — tanto entre grupos (por su primera operación) como entre
+  // filas dentro de cada grupo.
+  function marcaTiempo(t) {
+    return `${t.fecha || ""}|${t.hora || "24:00"}`;
+  }
 
   const grupos = useMemo(() => {
     const porClave = new Map();
@@ -129,6 +160,8 @@ export default function ResultadosDelDia({ resultados }) {
       porClave.get(clave).push(t);
     }
     return Array.from(porClave.entries()).sort((a, b) => {
+      const porTiempo = marcaTiempo(a[1][0]).localeCompare(marcaTiempo(b[1][0]));
+      if (porTiempo !== 0) return porTiempo;
       const nomA = (a[1][0].ticker || a[1][0].activo || "").toLowerCase();
       const nomB = (b[1][0].ticker || b[1][0].activo || "").toLowerCase();
       return nomA.localeCompare(nomB);
@@ -139,8 +172,25 @@ export default function ResultadosDelDia({ resultados }) {
     return ts.reduce((acc, t) => acc + (resultadoDe(t) ?? 0) + (computaPendienteDe(t) ?? 0), 0);
   }
 
+  // Tickers holdeados sin operar ese día: se agregan al final para mostrar todos
+  // los rendimientos por ticker en un solo listado (vienen ordenados por |resultado|).
+  const sinOperarPorClave = useMemo(() => {
+    const conTrades = new Set(trades.map((t) => t.clave));
+    const mapa = new Map();
+    for (const r of rendimientos) {
+      if (!r.clave || conTrades.has(r.clave) || mapa.has(r.clave)) continue;
+      mapa.set(r.clave, r);
+    }
+    return mapa;
+  }, [trades, rendimientos]);
+
+  const gruposTodos = useMemo(
+    () => [...grupos, ...Array.from(sinOperarPorClave.keys()).map((clave) => [clave, []])],
+    [grupos, sinOperarPorClave]
+  );
+
   function alternarGrupo(clave) {
-    setColapsados((actual) => {
+    setExpandidos((actual) => {
       const siguiente = new Set(actual);
       if (siguiente.has(clave)) siguiente.delete(clave);
       else siguiente.add(clave);
@@ -150,37 +200,44 @@ export default function ResultadosDelDia({ resultados }) {
 
   const etiquetaDia = resultados?.dia ? formatoFechaDia.format(fechaLocal(resultados.dia)) : "";
 
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  function cambiarDia(nuevaDia) {
+    const params = new URLSearchParams(searchParams);
+    params.set("dia", nuevaDia);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
   return (
     <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <div className="grid grid-cols-1 items-center gap-2 px-4 pt-4 sm:grid-cols-[1fr_auto_1fr]">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
         <div className="flex flex-wrap items-baseline gap-2">
-          <h2 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Resultados del día</h2>
+          <h2 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Resultados diarios</h2>
           <span className="text-lg font-semibold tabular-nums" style={{ color: resColor(total) }}>
             <ValorSensible>
               {signo(total)}{formatoARS.format(Math.abs(total ?? 0))}
             </ValorSensible>
           </span>
         </div>
-        {live?.ts && (
-          <span className="flex items-center justify-center gap-1.5 text-xs sm:order-none order-last" style={{ color: "var(--text-muted)" }}>
-            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full" style={{ background: "var(--good)" }} />
-            actualizado {formatoHora.format(live.ts)}
-          </span>
-        )}
-        <div className="text-xs sm:text-right" style={{ color: "var(--text-muted)" }}>
+        <div className="text-xs sm:text-right flex items-center justify-end gap-2" style={{ color: "var(--text-muted)" }}>
+          <CalendarioDias dias={diasOperados} dia={dia} onElegir={cambiarDia} />
           {etiquetaDia ? etiquetaDia[0].toUpperCase() + etiquetaDia.slice(1) : ""}
-          {!resultados?.esHoy && " · último día con operaciones"}
+          {!resultados?.esHoy && esUltimo && " · último día con operaciones"}
         </div>
       </div>
 
       <div className="overflow-x-auto pt-2">
         <table className="w-full text-sm">
           <tbody>
-            {grupos.map(([clave, ts]) => {
-              const primera = ts[0];
-              const abierto = !colapsados.has(clave);
+            {gruposTodos.map(([clave, ts]) => {
+              const sinOperar = sinOperarPorClave.get(clave) ?? null;
+              const primera = sinOperar ?? ts[0];
+              const abierto = expandidos.has(clave);
               const totalComprado = ts.filter((t) => t.tipo === "compra").reduce((acc, t) => acc + t.cantidad, 0);
               const totalVendido = ts.filter((t) => t.tipo === "venta").reduce((acc, t) => acc + t.cantidad, 0);
+              const subtotal = sinOperar ? (sinOperar.resultado ?? 0) : resultadoDeGrupo(ts);
               return (
                 <Fragment key={clave}>
                   <tr className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
@@ -196,41 +253,102 @@ export default function ResultadosDelDia({ resultados }) {
                         <span className="text-sm font-bold uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>
                           {primera.ticker || primera.activo}
                         </span>
-                        <span className="text-sm font-bold tabular-nums" style={{ color: resColor(resultadoDeGrupo(ts)) }}>
+                        <span className="text-sm font-bold tabular-nums" style={{ color: resColor(subtotal) }}>
                           <ValorSensible>
-                            {signo(resultadoDeGrupo(ts))}{formatoARS.format(Math.abs(resultadoDeGrupo(ts)))}
+                            {signo(subtotal)}{formatoARS.format(Math.abs(subtotal))}
                           </ValorSensible>
                         </span>
-                        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                          {ts.length} {ts.length === 1 ? "operación" : "operaciones"}
-                        </span>
-                        <span className="ml-auto flex items-center gap-3 text-xs tabular-nums">
-                          {totalComprado > 0 && (
-                            <span className="font-medium" style={{ color: "var(--good)" }}>
-                              +{totalComprado.toLocaleString("es-AR", { maximumFractionDigits: 2 })} comprados
-                            </span>
-                          )}
-                          {totalVendido > 0 && (
-                            <span className="font-medium" style={{ color: "var(--bad)" }}>
-                              −{totalVendido.toLocaleString("es-AR", { maximumFractionDigits: 2 })} vendidos
-                            </span>
-                          )}
-                        </span>
+                        {sinOperar ? (
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            sin operar ese día
+                            {sinOperar.computa === false && " · no computa"}
+                          </span>
+                        ) : (
+                          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                            {ts.length} {ts.length === 1 ? "operación" : "operaciones"}
+                          </span>
+                        )}
+                        {!sinOperar && (
+                          <span className="ml-auto flex items-center gap-3 text-xs tabular-nums">
+                            {totalComprado > 0 && (
+                              <span className="font-medium" style={{ color: "var(--good)" }}>
+                                +{totalComprado.toLocaleString("es-AR", { maximumFractionDigits: 2 })} comprados
+                              </span>
+                            )}
+                            {totalVendido > 0 && (
+                              <span className="font-medium" style={{ color: "var(--bad)" }}>
+                                −{totalVendido.toLocaleString("es-AR", { maximumFractionDigits: 2 })} vendidos
+                              </span>
+                            )}
+                          </span>
+                        )}
                       </button>
                     </td>
                   </tr>
-                  {abierto && (
+                  {abierto && sinOperar && (
+                    <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                      <td className="px-3 py-2 align-top">
+                        <span
+                          className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+                          style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
+                        >
+                          Sin operar
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                        {resultados?.dia ? formatoFechaCorta.format(fechaLocal(resultados.dia)) : "—"}
+                      </td>
+                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                        <span title="Cierre del día anterior (D-1), base del resultado del día">
+                          {formatoARS2.format(sinOperar.precioAyer)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                        <ValorSensible>{sinOperar.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
+                      </td>
+                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                        {formatoARS2.format(sinOperar.precioActual)}
+                      </td>
+                      <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(sinOperar.resultado) }}>
+                        <div className="flex flex-col">
+                          <ValorSensible>
+                            {signo(sinOperar.resultado)}{formatoARS.format(Math.abs(sinOperar.resultado))}
+                          </ValorSensible>
+                          {sinOperar.gananciaNoRealizada != null && (
+                            <span
+                              style={{ color: resColor(sinOperar.gananciaNoRealizada) }}
+                              title="Resultado contra el precio de compra original (desde la compra), no contra el cierre anterior."
+                            >
+                              <ValorSensible>
+                                vs compra: {signo(sinOperar.gananciaNoRealizada)}{formatoARS.format(Math.abs(sinOperar.gananciaNoRealizada))}
+                              </ValorSensible>
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(sinOperar.variacionDiariaPct) }}>
+                        {sinOperar.variacionDiariaPct == null ? (
+                          "—"
+                        ) : (
+                          <ValorSensible>
+                            {signo(sinOperar.variacionDiariaPct)}{(Math.abs(sinOperar.variacionDiariaPct) * 100).toFixed(2)}%
+                          </ValorSensible>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                  {abierto && !sinOperar && (
                     <tr className="border-b" style={{ borderColor: "var(--border)" }}>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Operación</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Fecha</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Precio operado</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Cantidad</th>
-                      <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Precio actual</th>
+                  <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Precio cierre/actual</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Resultado del día</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Rend. %</th>
                     </tr>
                   )}
-                  {abierto && (() => {
+                  {abierto && !sinOperar && (() => {
                       const filas = [];
                       ts.forEach((t) => {
                         if (t.tipo === "venta") {
@@ -243,9 +361,14 @@ export default function ResultadosDelDia({ resultados }) {
                         .sort((a, b) => {
                           const porFecha = (a.fecha || "").localeCompare(b.fecha || "");
                           if (porFecha !== 0) return porFecha;
-                          const nroA = Number(a.t?.nroOperacion ?? a.idx);
-                          const nroB = Number(b.t?.nroOperacion ?? b.idx);
-                          return nroA - nroB;
+                          const horaA = a.t?.hora || "24:00";
+                          const horaB = b.t?.hora || "24:00";
+                          if (horaA !== horaB) return horaA.localeCompare(horaB);
+                          const nroA = Number(a.t?.nroOperacion);
+                          const nroB = Number(b.t?.nroOperacion);
+                          const ordA = Number.isFinite(nroA) ? nroA : a.idx;
+                          const ordB = Number.isFinite(nroB) ? nroB : b.idx;
+                          return ordA - ordB;
                         })
                         .map((f) => {
                           if (f.tipo === "origen") {
@@ -297,7 +420,18 @@ export default function ResultadosDelDia({ resultados }) {
                                 {formatoFechaCorta.format(fechaLocal(t.fecha))}
                               </td>
                               <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                                {formatoARS2.format(t.precio)}
+                                <div className="flex flex-col">
+                                  {formatoARS2.format(t.precio)}
+                                  {esVenta && t.origenes?.length > 0 && t.baseResultado != null && (
+                                    <span
+                                      className="text-sm font-normal"
+                                      style={{ color: "var(--text-secondary)" }}
+                                      title="Precio de cierre anterior (D-1) usado como base del mark-to-market del día para la posición que ya se tenía."
+                                    >
+                                      Precio cierre anterior: {formatoARS2.format(t.baseResultado)}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-3 py-2 align-top tabular-nums"><Cantidad trade={t} /></td>
                               <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
@@ -311,26 +445,28 @@ export default function ResultadosDelDia({ resultados }) {
                                   formatoARS2.format(precioVivo)
                                 )}
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(resultado) }}>
-                                {resultado == null ? (
-                                  <span style={{ color: "var(--text-muted)" }}>—</span>
-                                ) : (
-                                  <div className="flex flex-col">
-                                    <ValorSensible>
-                                      {signo(resultado)}{formatoARS.format(Math.abs(resultado))}
-                                    </ValorSensible>
-                                    {esVenta && t.origenes?.length > 0 && t.gananciaRealizada != null && (
-                                      <span
-                                        className="text-[11px] font-normal"
-                                        style={{ color: "var(--text-muted)" }}
-                                        title="Resultado contra el precio de compra original (realizado desde la compra), no contra el cierre anterior."
-                                      >
-                                        vs compra: {signo(t.gananciaRealizada)}{formatoARS.format(Math.abs(t.gananciaRealizada))}
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
+<td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(resultado) }}>
+                                 {resultado == null ? (
+                                   <span style={{ color: "var(--text-muted)" }}>—</span>
+                                 ) : (
+                                   <div className="flex flex-col">
+                                     <ValorSensible>
+                                       {signo(resultado)}{formatoARS.format(Math.abs(resultado))}
+                                     </ValorSensible>
+                                      {esVenta && t.origenes?.length > 0 && t.gananciaRealizada != null && (
+                                        <span
+                                          style={{ color: resColor(t.gananciaRealizada) }}
+                                          title="Resultado contra el precio de compra original (realizado desde la compra), no contra el cierre anterior."
+                                        >
+                                          <ValorSensible>
+                                            vs compra: {signo(t.gananciaRealizada)}{formatoARS.format(Math.abs(t.gananciaRealizada))}
+                                          </ValorSensible>
+                                        </span>
+                                      )}
+
+                                   </div>
+                                 )}
+                               </td>
                               <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
                                 {porcentaje == null ? (
                                   <span style={{ color: "var(--text-muted)" }}>—</span>
@@ -344,75 +480,98 @@ export default function ResultadosDelDia({ resultados }) {
                           );
                         });
 
-                      const pendientes = ts
-                        .filter((t) => t.tipo === "compra" && t.cantidadPendiente > 0)
-                        .map((t) => {
-                          const precioVivo = precioActualDe(t);
-                          const rendimiento = rendimientoPendienteDe(t);
-                          const porcentaje = porcentajePendienteDe(t);
-                          const rentaFija = esRentaFija(t);
-                          return (
-                            <tr
-                              key={`${t.id}__pendiente`}
-                              className="border-b last:border-0"
-                              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-                            >
-                              <td className="px-3 py-2 align-top">
-                                <div className="flex flex-wrap items-center gap-1.5">
+                      // Tenencia pendiente consolidada en UNA fila por ticker: suma las
+                      // cantidades abiertas del día a precio promedio ponderado.
+                      const abiertas = ts.filter((t) => t.tipo === "compra" && t.cantidadPendiente > 0);
+                      const pendientes = (() => {
+                        if (!abiertas.length) return [];
+                        const primera = abiertas[0];
+                        const precioVivo = precioActualDe(primera);
+                        const factor = primera.factorPrecio ?? 1;
+                        const rentaFija = esRentaFija(primera);
+                        const totalPendiente = abiertas.reduce((acc, t) => acc + t.cantidadPendiente, 0);
+                        const conPrecio = abiertas.filter((t) => t.precio != null);
+                        const montoPonderado = conPrecio.reduce((acc, t) => acc + t.precio * t.cantidadPendiente, 0);
+                        const cantidadConPrecio = conPrecio.reduce((acc, t) => acc + t.cantidadPendiente, 0);
+                        const precioPromedio = cantidadConPrecio > 0 ? montoPonderado / cantidadConPrecio : null;
+                        const rendimiento =
+                          precioVivo != null && precioPromedio != null
+                            ? (precioVivo - precioPromedio) * totalPendiente * factor
+                            : null;
+                        const porcentaje =
+                          precioVivo != null && precioPromedio > 0 ? precioVivo / precioPromedio - 1 : null;
+                        return [
+                          <tr
+                            key={`${clave}__pendiente`}
+                            className="border-b last:border-0"
+                            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+                          >
+                            <td className="px-3 py-2 align-top">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+                                  style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
+                                  title={
+                                    abiertas.length > 1
+                                      ? `${abiertas.length} compras del día consolidadas a precio promedio`
+                                      : undefined
+                                  }
+                                >
+                                  Tenencia pendiente
+                                  {abiertas.length > 1 ? ` (${abiertas.length})` : ""}
+                                </span>
+                                {rentaFija && (
                                   <span
-                                    className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
-                                    style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
+                                    className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium"
+                                    style={{ color: "var(--text-muted)", border: "1px dashed var(--border)" }}
+                                    title="Se muestra a modo informativo y no se suma al Resultado del día"
                                   >
-                                    Tenencia pendiente
+                                    no computa
                                   </span>
-                                  {rentaFija && (
-                                    <span
-                                      className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium"
-                                      style={{ color: "var(--text-muted)", border: "1px dashed var(--border)" }}
-                                      title="Se muestra a modo informativo y no se suma al Resultado del día"
-                                    >
-                                      no computa
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                                {formatoFechaCorta.format(fechaLocal(t.fecha))}
-                              </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                                {formatoARS2.format(t.precio)}
-                              </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                                <ValorSensible>{t.cantidadPendiente.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
-                              </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                                {precioVivo == null ? (
-                                  <span style={{ color: "var(--bad)" }}>sin precio</span>
-                                ) : (
-                                  formatoARS2.format(precioVivo)
                                 )}
-                              </td>
-                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(rendimiento) }}>
-                                {rendimiento == null ? (
-                                  <span style={{ color: "var(--text-muted)" }}>—</span>
-                                ) : (
-                                  <ValorSensible>
-                                    {signo(rendimiento)}{formatoARS.format(Math.abs(rendimiento))}
-                                  </ValorSensible>
-                                )}
-                              </td>
-                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
-                                {porcentaje == null ? (
-                                  <span style={{ color: "var(--text-muted)" }}>—</span>
-                                ) : (
-                                  <ValorSensible>
-                                    {signo(porcentaje)}{(Math.abs(porcentaje) * 100).toFixed(2)}%
-                                  </ValorSensible>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        });
+                              </div>
+                            </td>
+                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              {formatoFechaCorta.format(fechaLocal(primera.fecha))}
+                            </td>
+                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              {precioPromedio == null ? (
+                                <span style={{ color: "var(--text-muted)" }}>—</span>
+                              ) : (
+                                formatoARS2.format(precioPromedio)
+                              )}
+                            </td>
+                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <ValorSensible>{totalPendiente.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
+                            </td>
+                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              {precioVivo == null ? (
+                                <span style={{ color: "var(--bad)" }}>sin precio</span>
+                              ) : (
+                                formatoARS2.format(precioVivo)
+                              )}
+                            </td>
+                            <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(rendimiento) }}>
+                              {rendimiento == null ? (
+                                <span style={{ color: "var(--text-muted)" }}>—</span>
+                              ) : (
+                                <ValorSensible>
+                                  {signo(rendimiento)}{formatoARS.format(Math.abs(rendimiento))}
+                                </ValorSensible>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
+                              {porcentaje == null ? (
+                                <span style={{ color: "var(--text-muted)" }}>—</span>
+                              ) : (
+                                <ValorSensible>
+                                  {signo(porcentaje)}{(Math.abs(porcentaje) * 100).toFixed(2)}%
+                                </ValorSensible>
+                              )}
+                            </td>
+                          </tr>,
+                        ];
+                      })();
 
                       return [...operaciones, ...pendientes];
                     })()}
@@ -421,9 +580,14 @@ export default function ResultadosDelDia({ resultados }) {
             })}
           </tbody>
         </table>
-        {!trades.length && (
+        {!trades.length && sinOperarPorClave.size === 0 && (
           <p className="py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
             No hubo compra/venta {etiquetaDia ? "el " + etiquetaDia : "ese día"}.
+          </p>
+        )}
+        {Array.from(sinOperarPorClave.values()).some((r) => r.computa === false) && (
+          <p className="px-4 pb-3 text-[11px]" style={{ color: "var(--text-muted)" }}>
+            La renta fija se lista a modo informativo: su variación no se incluye en el Resultado del día.
           </p>
         )}
       </div>
@@ -437,90 +601,6 @@ export default function ResultadosDelDia({ resultados }) {
         </p>
       )}
 
-      {rendimientos.length > 0 && (
-        <div className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
-          <div className="mb-2 flex flex-wrap items-baseline gap-2">
-            <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-              Tenencia sin operar {resultados?.esHoy ? "hoy" : "ese día"} (variación del día)
-            </span>
-            {hayRendimientosComputables && (
-              <span className="text-sm font-medium tabular-nums" style={{ color: resColor(subtotalRendimiento) }}>
-                <ValorSensible>
-                  {signo(subtotalRendimiento)}{formatoARS.format(Math.abs(subtotalRendimiento))}
-                </ValorSensible>
-              </span>
-            )}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b" style={{ borderColor: "var(--border)" }}>
-                  <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Activo</th>
-                  <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Cantidad</th>
-                  <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Precio ayer</th>
-                  <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Precio actual</th>
-                  <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Var. día</th>
-                  <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Resultado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rendimientos.map((r) => (
-                  <tr key={r.clave} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-                    <td className="px-3 py-2 align-top">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Logo ticker={r.ticker} nombre={r.activo} size={24} banderaArgentina={banderaArgentinaDe(r)} />
-                        <span style={{ color: "var(--text-primary)" }}>{r.ticker || r.activo}</span>
-                        {r.computa === false && (
-                          <span
-                            className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium"
-                            style={{ color: "var(--text-muted)", border: "1px dashed var(--border)" }}
-                            title="Se muestra a modo informativo y no se suma al Resultado del día"
-                          >
-                            no computa
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                      <ValorSensible>{r.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
-                    </td>
-                    <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                      {formatoARS2.format(r.precioAyer)}
-                    </td>
-                    <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                      {formatoARS2.format(r.precioActual)}
-                    </td>
-                    <td className="px-3 py-2 align-top tabular-nums" style={{ color: resColor(r.variacionDiariaPct) }}>
-                      {r.variacionDiariaPct == null ? "—" : `${signo(r.variacionDiariaPct)}${Math.abs(r.variacionDiariaPct * 100).toFixed(2)}%`}
-                    </td>
-                    <td className="px-3 py-2 align-top font-medium tabular-nums" style={{ color: resColor(r.resultado) }}>
-                      <div className="flex flex-col">
-                        <ValorSensible>
-                          {signo(r.resultado)}{formatoARS.format(Math.abs(r.resultado))}
-                        </ValorSensible>
-                        {r.gananciaNoRealizada != null && (
-                          <span
-                            className="text-[11px] font-normal"
-                            style={{ color: "var(--text-muted)" }}
-                            title="Resultado contra el precio de compra original (desde la compra), no contra el cierre anterior."
-                          >
-                            vs compra: {signo(r.gananciaNoRealizada)}{formatoARS.format(Math.abs(r.gananciaNoRealizada))}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {rendimientos.some((r) => r.computa === false) && (
-            <p className="pt-2 text-[11px]" style={{ color: "var(--text-muted)" }}>
-              Los activos de renta fija se listan a modo informativo: su variación no se incluye en el Resultado del día.
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
