@@ -73,9 +73,10 @@ export default function ResultadosDelDia({ resultados }) {
   }
 
   function resultadoDe(t) {
-    if (t.tipo === "venta") return t.gananciaRealizada ?? null;
-    // Una compra no realiza resultado por sí misma: solo las ventas. Lo que queda
-    // sin vender se muestra aparte como "tenencia pendiente" (ver rendimientoPendienteDe).
+    // Venta: resultado del día (mark-to-market contra el cierre anterior; precio de
+    // compra para lo comprado ese mismo día). Una compra no realiza resultado por sí
+    // misma: lo que queda sin vender se muestra aparte como "tenencia pendiente".
+    if (t.tipo === "venta") return t.resultado ?? null;
     return null;
   }
 
@@ -101,8 +102,9 @@ export default function ResultadosDelDia({ resultados }) {
   }
 
   function porcentajeDe(t) {
-    if (t.tipo !== "venta" || t.gananciaRealizada == null || !(t.precioCompra > 0)) return null;
-    return t.gananciaRealizada / (t.precioCompra * t.cantidad);
+    if (t.tipo !== "venta" || t.resultado == null) return null;
+    const base = t.costoBase ?? (t.precioCompra > 0 ? t.precioCompra * t.cantidad : null);
+    return base > 0 ? t.resultado / base : null;
   }
 
   function porcentajePendienteDe(t) {
@@ -224,7 +226,7 @@ export default function ResultadosDelDia({ resultados }) {
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Precio operado</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Cantidad</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Precio actual</th>
-                      <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Resultado</th>
+                      <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Resultado del día</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Rend. %</th>
                     </tr>
                   )}
@@ -313,9 +315,20 @@ export default function ResultadosDelDia({ resultados }) {
                                 {resultado == null ? (
                                   <span style={{ color: "var(--text-muted)" }}>—</span>
                                 ) : (
-                                  <ValorSensible>
-                                    {signo(resultado)}{formatoARS.format(Math.abs(resultado))}
-                                  </ValorSensible>
+                                  <div className="flex flex-col">
+                                    <ValorSensible>
+                                      {signo(resultado)}{formatoARS.format(Math.abs(resultado))}
+                                    </ValorSensible>
+                                    {esVenta && t.origenes?.length > 0 && t.gananciaRealizada != null && (
+                                      <span
+                                        className="text-[11px] font-normal"
+                                        style={{ color: "var(--text-muted)" }}
+                                        title="Resultado contra el precio de compra original (realizado desde la compra), no contra el cierre anterior."
+                                      >
+                                        vs compra: {signo(t.gananciaRealizada)}{formatoARS.format(Math.abs(t.gananciaRealizada))}
+                                      </span>
+                                    )}
+                                  </div>
                                 )}
                               </td>
                               <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
@@ -415,6 +428,15 @@ export default function ResultadosDelDia({ resultados }) {
         )}
       </div>
 
+      {trades.some((t) => t.tipo === "venta" && t.origenes?.length > 0) && (
+        <p className="px-4 pb-3 text-[11px]" style={{ color: "var(--text-muted)" }}>
+          <strong style={{ color: "var(--text-secondary)" }}>Resultado del día</strong> mide la variación de la rueda: lo que ya
+          tenías al cierre anterior se mide contra ese cierre y lo comprado ese día contra el precio de compra. Debajo, en gris,{" "}
+          <strong style={{ color: "var(--text-secondary)" }}>vs compra</strong> es el resultado contra el precio de compra original
+          (realizado desde la compra), que arrastra días previos.
+        </p>
+      )}
+
       {rendimientos.length > 0 && (
         <div className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
           <div className="mb-2 flex flex-wrap items-baseline gap-2">
@@ -472,9 +494,20 @@ export default function ResultadosDelDia({ resultados }) {
                       {r.variacionDiariaPct == null ? "—" : `${signo(r.variacionDiariaPct)}${Math.abs(r.variacionDiariaPct * 100).toFixed(2)}%`}
                     </td>
                     <td className="px-3 py-2 align-top font-medium tabular-nums" style={{ color: resColor(r.resultado) }}>
-                      <ValorSensible>
-                        {signo(r.resultado)}{formatoARS.format(Math.abs(r.resultado))}
-                      </ValorSensible>
+                      <div className="flex flex-col">
+                        <ValorSensible>
+                          {signo(r.resultado)}{formatoARS.format(Math.abs(r.resultado))}
+                        </ValorSensible>
+                        {r.gananciaNoRealizada != null && (
+                          <span
+                            className="text-[11px] font-normal"
+                            style={{ color: "var(--text-muted)" }}
+                            title="Resultado contra el precio de compra original (desde la compra), no contra el cierre anterior."
+                          >
+                            vs compra: {signo(r.gananciaNoRealizada)}{formatoARS.format(Math.abs(r.gananciaNoRealizada))}
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
