@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial } from "@/lib/storage";
+import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, actualizarTransaccion, claveTransaccion } from "@/lib/storage";
 import { parseArchivoIEB } from "@/lib/parseIEB";
 import { parsePortafolio } from "@/lib/parsePortafolio";
 
@@ -101,6 +101,51 @@ export async function importarMovimientos(prevState, formData) {
   };
 }
 
+/**
+ * Importa el export diario "Operaciones del día" (compras y ventas del día) como
+ * movimientos de Compras y ventas. Va por separado del import de Portafolio: el
+ * Portafolio actualiza las posiciones, este solo agrega operaciones al historial.
+ */
+export async function importarOperacionesDelDia(prevState, formData) {
+  const archivos = formData.getAll("archivos").filter((f) => f && typeof f === "object" && f.size > 0);
+  if (!archivos.length) {
+    return { error: "Seleccioná al menos un archivo de 'Operaciones del día' (.xlsx).", exito: null };
+  }
+
+  let agregadasTotal = 0;
+  let actualizadasTotal = 0;
+  const errores = [];
+
+  for (const archivo of archivos) {
+    try {
+      const buffer = Buffer.from(await archivo.arrayBuffer());
+      const { formato, transacciones } = await parseArchivoIEB(buffer);
+      if (formato !== "operaciones-del-dia") {
+        throw new Error("no es un export de 'Operaciones del día' (usá la otra sección para otros formatos)");
+      }
+      if (!transacciones?.length) {
+        throw new Error("el archivo no trae operaciones de compra/venta");
+      }
+      const { agregadas, actualizadas } = await mergeTransacciones(transacciones);
+      agregadasTotal += agregadas;
+      actualizadasTotal += actualizadas;
+    } catch (err) {
+      errores.push(`${archivo.name}: ${err.message}`);
+    }
+  }
+
+  if (errores.length && agregadasTotal === 0 && actualizadasTotal === 0) {
+    return { error: errores.join(" · "), exito: null };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/movimientos");
+  return {
+    error: errores.length ? errores.join(" · ") : null,
+    exito: { agregadas: agregadasTotal, actualizadas: actualizadasTotal },
+  };
+}
+
 function aNumero(texto) {
   const limpio = String(texto || "").trim().replace(",", ".");
   if (!limpio) return null;
@@ -120,6 +165,7 @@ export async function agregarOperacionManual(prevState, formData) {
   const precio = aNumero(formData.get("precio"));
   const importe = aNumero(formData.get("importe"));
   const cclManual = aNumero(formData.get("ccl"));
+  const precioUSD = aNumero(formData.get("precioUSD"));
 
   if (!activo) return { error: "Falta el nombre del activo.", exito: null };
   if (!fecha) return { error: "Falta la fecha.", exito: null };
@@ -127,6 +173,7 @@ export async function agregarOperacionManual(prevState, formData) {
   if (precio == null || precio <= 0) return { error: "El precio tiene que ser un número positivo.", exito: null };
   if (importe != null && importe <= 0) return { error: "El importe tiene que ser un número positivo.", exito: null };
   if (cclManual != null && cclManual <= 0) return { error: "El dólar CCL tiene que ser un número positivo.", exito: null };
+  if (precioUSD != null && precioUSD <= 0) return { error: "El precio en dólares tiene que ser un número positivo.", exito: null };
 
   const esCompra = operacion === "compra";
   const nueva = {
@@ -137,6 +184,7 @@ export async function agregarOperacionManual(prevState, formData) {
     fechaLiquidacion: fecha,
     hora: hora || null,
     cclManual,
+    precioUSD,
     precio,
     cantidad: esCompra ? Math.abs(cantidad) : -Math.abs(cantidad),
     importeARS: importe ?? null,
@@ -147,6 +195,60 @@ export async function agregarOperacionManual(prevState, formData) {
   };
 
   await mergeTransacciones([nueva]);
+  revalidatePath("/movimientos");
+  revalidatePath("/", "layout");
+  return { error: null, exito: { activo, operacion: esCompra ? "compra" : "venta" } };
+}
+
+/**
+ * Edita una operación ya guardada (importada o cargada a mano): fecha, cantidad,
+ * precio, importe ARS, divisa y/o el CCL del día. Busca la transacción original
+ * por su clave de dedup (que no cambia con la edición) y actualiza esos campos,
+ * dejando intacto el resto.
+ */
+export async function editarOperacion(prevState, formData) {
+  const clave = String(formData.get("clave") || "").trim();
+  const activo = String(formData.get("activo") || "").trim();
+  const ticker = String(formData.get("ticker") || "").trim().toUpperCase();
+  const operacion = formData.get("operacion"); // "compra" | "venta"
+  const fecha = String(formData.get("fecha") || "").trim();
+  const divisa = formData.get("divisa") === "USD" ? "USD" : "ARS";
+
+  const cantidad = aNumero(formData.get("cantidad"));
+  const precio = aNumero(formData.get("precio"));
+  const importe = aNumero(formData.get("importe"));
+  const cclManual = aNumero(formData.get("ccl"));
+  const precioUSD = aNumero(formData.get("precioUSD"));
+  const hora = String(formData.get("hora") || "").trim();
+
+  if (!clave) return { error: "No se pudo identificar la operación a editar.", exito: null };
+  if (!fecha) return { error: "Falta la fecha.", exito: null };
+  if (cantidad == null || cantidad <= 0) return { error: "La cantidad tiene que ser un número positivo.", exito: null };
+  if (precio == null || precio <= 0) return { error: "El precio tiene que ser un número positivo.", exito: null };
+  if (importe != null && importe <= 0) return { error: "El importe tiene que ser un número positivo.", exito: null };
+  if (cclManual != null && cclManual <= 0) return { error: "El dólar CCL tiene que ser un número positivo.", exito: null };
+  if (precioUSD != null && precioUSD <= 0) return { error: "El precio en dólares tiene que ser un número positivo.", exito: null };
+
+  const esCompra = operacion === "compra";
+  const datos = {
+    activo,
+    ticker: ticker || null,
+    operacion: esCompra ? "COMPRA NORMAL" : "VENTA",
+    fecha,
+    hora: hora || null,
+    cantidad: esCompra ? Math.abs(cantidad) : -Math.abs(cantidad),
+    precio,
+    importeARS: importe ?? null,
+    divisa,
+    cclManual,
+    precioUSD,
+  };
+
+  const ok = await actualizarTransaccion(clave, datos);
+  if (!ok) {
+    return { error: "No se encontró la operación guardada — ¿cambió la fecha o los datos del activo?", exito: null };
+  }
+
   revalidatePath("/movimientos");
   revalidatePath("/", "layout");
   return { error: null, exito: { activo, operacion: esCompra ? "compra" : "venta" } };

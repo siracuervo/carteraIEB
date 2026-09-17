@@ -109,6 +109,18 @@ export default function FormularioOperacionManual() {
             style={estiloInput}
           />
         </label>
+        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Precio en USA (USD, opcional)
+          <input
+            type="number"
+            name="precioUSD"
+            min="0"
+            step="any"
+            placeholder="Cotización del subyacente en NYSE, en dólares"
+            className="rounded border px-2 py-1 text-sm"
+            style={estiloInput}
+          />
+        </label>
       </div>
 
       {estado?.error && (

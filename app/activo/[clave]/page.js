@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { obtenerDatosCartera } from "@/lib/datosCartera";
 import { transaccionesDeActivo, factorPrecioPorClase } from "@/lib/calculos";
+import { CLASES } from "@/lib/clasificacion";
 import { fechaLocal } from "@/lib/fechas";
 import Logo from "@/app/components/Logo";
 import ValorSensible from "@/app/components/ValorSensible";
@@ -13,12 +14,23 @@ export const dynamic = "force-dynamic";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+// Los precios y costos no son importes: los bonos cotizan con varios decimales
+// (ej. 122,6 · PPP 121,90305), así que no se redondean a peso entero como los valores.
+const formatoPrecioARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0, maximumFractionDigits: 6 });
+const formatoPrecioARSsinDecimales = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoPct = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1, signDisplay: "exceptZero" });
 const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 function formatoMoneda(valor, divisa) {
   if (valor == null) return "—";
   return divisa === "USD" ? formatoUSD.format(valor) : formatoARS.format(valor);
+}
+
+/** Igual que formatoMoneda pero sin redondear los decimales de precio/costo promedio (los CEDEARs se muestran sin decimales). */
+function formatoPrecio(valor, divisa, claseActivo) {
+  if (valor == null) return "—";
+  if (divisa === "USD") return formatoUSD.format(valor);
+  return claseActivo === CLASES.CEDEAR ? formatoPrecioARSsinDecimales.format(valor) : formatoPrecioARS.format(valor);
 }
 
 /**
@@ -183,8 +195,8 @@ export default async function ActivoPage({ params, searchParams }) {
           <BloqueTarjetas icono={<IconoCartera />} titulo="Tu posición en cartera" color="var(--marca)">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Tarjeta etiqueta="Cantidad" valor={<ValorSensible>{tenencia.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
-              <Tarjeta etiqueta="Costo promedio" valor={formatoMoneda(tenencia.costoPromedio, tenencia.divisa)} />
-              <Tarjeta etiqueta="Precio actual" valor={formatoMoneda(tenencia.precioActual, tenencia.divisa)} />
+              <Tarjeta etiqueta="Costo promedio" valor={formatoPrecio(tenencia.costoPromedio, tenencia.divisa, activo.claseActivo)} />
+              <Tarjeta etiqueta="Precio actual" valor={formatoPrecio(tenencia.precioActual, tenencia.divisa, activo.claseActivo)} />
               <Tarjeta etiqueta="Valor actual" valor={<ValorSensible>{formatoARS.format(tenencia.valorActualARS)}</ValorSensible>} />
             </div>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -358,7 +370,7 @@ export default async function ActivoPage({ params, searchParams }) {
                       {m.cantidad != null ? <ValorSensible>{m.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible> : "—"}
                     </td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                      {m.precio != null ? formatoMoneda(m.precio, m.divisa || activo.divisa) : "—"}
+                      {m.precio != null ? formatoPrecio(m.precio, m.divisa || activo.divisa, activo.claseActivo) : "—"}
                     </td>
                     <td className="px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
                       {(() => {

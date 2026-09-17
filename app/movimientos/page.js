@@ -1,4 +1,4 @@
-import { leerTransacciones, leerPortafolioHistorial } from "@/lib/storage";
+import { leerTransacciones, leerPortafolioHistorial, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
 import { importarMovimientos } from "@/app/actions";
@@ -32,7 +32,13 @@ export default async function MovimientosPage() {
 
   // Misma resolución de tickers que usan el dashboard y las páginas de activo, para
   // que la clave de cada operación coincida con la del enlace /activo/[clave].
+  // La clave de edición se calcula sobre la transacción CRUDA (resolverTickers puede
+  // agregar tickers que la original no tenía y cambiarían la clave sintética).
   const transacciones = resolverTickersConPortafolio(transaccionesRaw, portafolioHistorial);
+  const conClave = transaccionesRaw.map((tRaw, i) => ({
+    ...(transacciones[i] || tRaw),
+    clave: claveTransaccion(tRaw),
+  }));
 
   const compras = transacciones.filter(esCompra).length;
   const ventas = transacciones.filter(esVenta).length;
@@ -43,7 +49,7 @@ export default async function MovimientosPage() {
   const diasConCompra = new Set(comprasHabilitas.map((t) => t.fecha));
   const promedioComprasPorDia = diasConCompra.size ? comprasHabilitas.length / diasConCompra.size : 0;
 
-  const ordenadas = [...transacciones].sort((a, b) => {
+  const ordenadas = [...conClave].sort((a, b) => {
     const porFecha = (b.fecha || "").localeCompare(a.fecha || "");
     return porFecha !== 0 ? porFecha : Number(b.nroOperacion ?? 0) - Number(a.nroOperacion ?? 0);
   });
@@ -123,8 +129,17 @@ export default async function MovimientosPage() {
       )}
 
       <SeccionCarga
+        titulo="Todas las operaciones"
+        abierta={false}
+        estadoActual={`${ordenadas.length} operaciones`}
+        descripcion="La lista completa de movimientos importados y cargados a mano, con filtros por búsqueda, tipo, divisa y rango de fechas."
+      >
+        <ListaMovimientos transacciones={ordenadas} />
+      </SeccionCarga>
+
+      <SeccionCarga
         titulo="Importar movimientos"
-        abierta={!transacciones.length}
+        abierta={false}
         estadoActual={
           transacciones.length
             ? `${transacciones.length} operaciones importadas` +
@@ -153,7 +168,7 @@ export default async function MovimientosPage() {
 
       <SeccionCarga
         titulo="Activos operados"
-        abierta={true}
+        abierta={false}
         estadoActual={`${listaActivos.length} activos`}
         descripcion="Cada activo con compras o ventas registradas, con acceso directo a su página de detalle (historial completo, totales y resultado por venta)."
       >
@@ -162,15 +177,6 @@ export default async function MovimientosPage() {
         ) : (
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>Todavía no hay compras ni ventas registradas.</p>
         )}
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Todas las operaciones"
-        abierta={true}
-        estadoActual={`${ordenadas.length} operaciones`}
-        descripcion="La lista completa de movimientos importados y cargados a mano, con filtros por búsqueda, tipo, divisa y rango de fechas."
-      >
-        <ListaMovimientos transacciones={ordenadas} />
       </SeccionCarga>
     </main>
   );

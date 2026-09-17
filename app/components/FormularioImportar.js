@@ -9,6 +9,11 @@ function mensajeExito(tipo, exito) {
   if (tipo === "portafolio") {
     return `Listo — ${exito.importados} archivo(s) importado(s). Último patrimonio: ${formatoARS.format(exito.ultimoPatrimonio)}.`;
   }
+  if (tipo === "operaciones-del-dia") {
+    return `Listo — ${exito.agregadas} operación(es) agregada(s) como compras/ventas${
+      exito.actualizadas ? `, ${exito.actualizadas} ya existían y se completaron` : ""
+    }.`;
+  }
   return `Listo — ${exito.agregadas} operaciones nuevas, ${exito.actualizadas} completadas con datos del otro archivo.`;
 }
 

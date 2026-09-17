@@ -132,11 +132,6 @@ function Fila({ etiqueta, subtitulo, variacion }) {
           <ValorSensible>{formatoARS.format(variacion.diffARS)}</ValorSensible>
         </span>
       </div>
-      {variacion.basadoEnFecha && (
-        <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
-          Cartera basada en las posiciones del {formatoFechaCorta.format(fechaLocal(variacion.basadoEnFecha))} — todavía falta importar el Portfolio de hoy.
-        </p>
-      )}
     </div>
   );
 }

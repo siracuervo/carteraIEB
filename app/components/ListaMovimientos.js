@@ -1,13 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { fechaLocal } from "@/lib/fechas";
-import { clasificar } from "@/lib/clasificacion";
+import { clasificar, CLASES } from "@/lib/clasificacion";
 import { factorPrecioPorClase } from "@/lib/calculos";
+import FormEditarOperacion from "./FormEditarOperacion";
 
 const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+// Los precios no son importes: los bonos cotizan con varios decimales (ej. 122,6),
+// así que no se redondean a peso entero. Los CEDEARs sí se muestran sin decimales
+// (son precios por unidad altos y la parte decimal agrega ruido).
+const formatoPrecioARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0, maximumFractionDigits: 6 });
+const formatoPrecioARSsinDecimales = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
 function esCompra(t) {
   return (t.operacion || "").toUpperCase().includes("COMPRA");
@@ -23,9 +29,11 @@ function esEstimable(t) {
   return op.includes("COMPRA") || op.includes("VENTA");
 }
 
-function formatoMoneda(valor, divisa) {
+/** Igual que el formato de importes pero sin redondear los decimales del precio. */
+function formatoPrecio(valor, divisa, claseActivo) {
   if (valor == null) return "—";
-  return divisa === "USD" ? formatoUSD.format(valor) : formatoARS.format(valor);
+  if (divisa === "USD") return formatoUSD.format(valor);
+  return claseActivo === CLASES.CEDEAR ? formatoPrecioARSsinDecimales.format(valor) : formatoPrecioARS.format(valor);
 }
 
 /** Importe en ARS a mostrar: el real si IEB lo trajo, si no Precio × Cantidad estimado (negativo para compras). */
@@ -49,6 +57,7 @@ export default function ListaMovimientos({ transacciones }) {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [divisa, setDivisa] = useState("todas");
+  const [editandoClave, setEditandoClave] = useState(null);
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -132,6 +141,12 @@ export default function ListaMovimientos({ transacciones }) {
               <th className="px-4 py-2 text-right font-medium">Cantidad</th>
               <th className="px-4 py-2 text-right font-medium">Precio</th>
               <th className="px-4 py-2 text-right font-medium">Importe ARS</th>
+              <th
+                className="px-4 py-2 text-right font-medium"
+                style={{ position: "sticky", right: 0, background: "var(--surface-1)", zIndex: 1 }}
+              >
+                Editar
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -139,8 +154,8 @@ export default function ListaMovimientos({ transacciones }) {
               const { texto: importe, estimado } = importeMostrado(t);
               const venta = esVenta(t);
               return (
+                <Fragment key={t.clave ?? `${t.activo}-${t.nroOperacion}-${t.fecha}-${i}`}>
                 <tr
-                  key={t.clave ?? `${t.activo}-${t.nroOperacion}-${t.fecha}-${i}`}
                   style={{ borderBottom: i < filtradas.length - 1 ? "1px solid var(--gridline)" : "none" }}
                 >
                   <td className="whitespace-nowrap px-4 py-2 tabular-nums" style={{ color: "var(--text-primary)" }}>
@@ -161,7 +176,7 @@ export default function ListaMovimientos({ transacciones }) {
                     {t.cantidad != null ? t.cantidad.toLocaleString("es-AR") : "—"}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
-                    {formatoMoneda(t.precio, t.divisa || "ARS")}
+                    {formatoPrecio(t.precio, t.divisa || "ARS", clasificar({ activo: t.activo, ticker: t.ticker, operacion: t.operacion }).claseActivo)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
                     {importe}
@@ -169,7 +184,28 @@ export default function ListaMovimientos({ transacciones }) {
                       <span className="ml-1 text-xs" style={{ color: "var(--text-muted)" }}>(est.)</span>
                     )}
                   </td>
+                  <td
+                    className="whitespace-nowrap px-4 py-2 text-right"
+                    style={{ position: "sticky", right: 0, background: "var(--surface-1)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setEditandoClave((actual) => (actual === t.clave ? null : t.clave))}
+                      className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors"
+                      style={{ borderColor: "var(--marca)", color: "var(--marca)", background: "var(--surface-2)" }}
+                    >
+                      {editandoClave === t.clave ? "Cerrar" : "Editar"}
+                    </button>
+                  </td>
                 </tr>
+                  {editandoClave === t.clave && (
+                    <tr style={{ borderBottom: i < filtradas.length - 1 ? "1px solid var(--gridline)" : "none" }}>
+                      <td colSpan={7} className="px-4 py-2">
+                        <FormEditarOperacion transaccion={t} onCancelar={() => setEditandoClave(null)} />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               );
             })}
           </tbody>

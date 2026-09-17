@@ -3,15 +3,19 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CLASES } from "@/lib/clasificacion";
+import { factorPrecioPorClase } from "@/lib/calculos";
 import Logo from "./Logo";
 import ValorSensible from "./ValorSensible";
 import BotonOrden from "./BotonOrden";
 import IconoCartera from "./IconoCartera";
 import EditarPPP from "./EditarPPP";
-import BadgeVariacionDiaria from "./BadgeVariacionDiaria";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoARS2 = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
+// Los precios y costos no son importes: los bonos cotizan con varios decimales
+// (ej. 122,6 · PPP 121,90305), así que no se redondean a peso entero como los valores.
+const formatoPrecioARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", minimumFractionDigits: 0, maximumFractionDigits: 6 });
+const formatoPrecioARSsinDecimales = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const formatoPct = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1, signDisplay: "exceptZero" });
 const formatoHora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -21,6 +25,13 @@ const REFRESCO_PRECIOS_MS = 60_000;
 function formatoMoneda(valor, divisa) {
   if (valor == null) return "—";
   return divisa === "USD" ? formatoUSD.format(valor) : formatoARS.format(valor);
+}
+
+/** Igual que formatoMoneda pero sin redondear los decimales de precio/costo promedio (los CEDEARs se muestran sin decimales). */
+function formatoPrecio(valor, divisa, claseActivo) {
+  if (valor == null) return "—";
+  if (divisa === "USD") return formatoUSD.format(valor);
+  return claseActivo === CLASES.CEDEAR ? formatoPrecioARSsinDecimales.format(valor) : formatoPrecioARS.format(valor);
 }
 
 function IconoChevron({ abierto }) {
@@ -76,9 +87,8 @@ const COLUMNAS_ORDENABLES = {
   cantidad: { campo: (t) => t.cantidad },
   costo: { campo: (t) => t.costoPromedio },
   precio: { campo: (t) => t.precioActual },
-  variacionDiaria: { campo: (t) => t.variacionDiariaPct },
-  cclCompra: { campo: (t) => t.cclCompra },
   valor: { campo: (t) => t.valorActualARS },
+  diasTenencia: { campo: (t) => t.diasTenencia },
   retorno: { campo: (t) => t.retornoPct },
   pct: { campo: (t) => t.pctCartera },
 };
@@ -269,6 +279,21 @@ export default function TablaTenencias({ tenencias }) {
     return modo === "usa" ? (usa?.precio ?? null) : (cedear?.precio ?? t.precioActual);
   }
 
+  /** Valor de una tenencia con el precio en vivo que se muestra: precio × cantidad × factor (÷ dólar en modo USA). */
+  function valorDe(t) {
+    if (t.esCash) return t.valorActualARS;
+    const ccl = live?.ccl ?? null;
+    const datoCedear = t.ticker && live?.cedear ? live.cedear[t.ticker] : null;
+    // El valor siempre se calcula con la cotización LOCAL en ARS (datoCedear.precio),
+    // que ya incluye el ratio del CEDEAR contra el subyacente. En modo USA solo cambia
+    // la MONEDA mostrada (÷ CCL) — no se multiplica por el precio USD del subyacente.
+    const precioLocal = datoCedear?.precio ?? t.precioActual;
+    const factorPrecio = factorPrecioPorClase(t.claseActivo);
+    if (precioLocal == null) return modo === "usa" && ccl ? t.valorActualARS / ccl : t.valorActualARS;
+    const enARS = precioLocal * t.cantidad * factorPrecio;
+    return modo === "usa" && ccl ? enARS / ccl : enARS;
+  }
+
   function renderFila(t) {
     const pctCartera = t.pctCartera ?? null;
     const esRentaFija = t.claseActivo === CLASES.BONO_SOBERANO;
@@ -290,10 +315,8 @@ export default function TablaTenencias({ tenencias }) {
           : null
         : t.costoPromedio;
     const monedaCosto = modo === "usa" ? "USD" : t.divisa;
-    const valorMostrado =
-      modo === "usa" && ccl ? t.valorActualARS / ccl : t.valorActualARS;
+    const valorMostrado = valorDe(t);
     const monedaValor = modo === "usa" ? "USD" : "ARS";
-    const variacionDiaria = modo === "usa" ? (datoUSA?.variacionDiariaPct ?? null) : (datoCedear?.variacionDiariaPct ?? t.variacionDiariaPct);
     return (
       <Fragment key={t.clave}>
         <tr className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
@@ -321,18 +344,29 @@ export default function TablaTenencias({ tenencias }) {
           <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? "—" : <ValorSensible>{t.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>}
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums">
-            {t.esCash ? "—" : <BadgeVariacionDiaria pct={variacionDiaria} />}
+          <td
+            className="px-2 py-1.5 align-top tabular-nums"
+            style={{ color: t.retornoPct == null ? "var(--text-muted)" : t.retornoPct >= 0 ? "var(--good)" : "var(--bad)" }}
+          >
+            {t.retornoPct == null ? "—" : formatoPct.format(t.retornoPct)}
+          </td>
+          <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: t.diasTenencia == null ? "var(--text-muted)" : "var(--text-secondary)" }}>
+            {t.esCash || t.diasTenencia == null ? "—" : `${Math.round(t.diasTenencia)} ${Math.round(t.diasTenencia) === 1 ? "día" : "días"}`}
           </td>
           <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-            {t.esCash ? "—" : formatoMoneda(precioMostrado, monedaMostrada)}
+            {t.esCash ? "—" : formatoPrecio(precioMostrado, monedaMostrada, t.claseActivo)}
           </td>
           <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? (
               "—"
             ) : (
               <>
-                {formatoMoneda(costoPromedioMostrado, monedaCosto)}
+                {formatoPrecio(costoPromedioMostrado, monedaCosto, t.claseActivo)}
+                {!t.esCash && t.cclCompra != null && (
+                  <div className="mt-0.5 text-xs italic" style={{ color: "var(--text-muted)" }} title="Dólar CCL promedio de las compras de esta tenencia">
+                    CCL {formatoARS2.format(t.cclCompra)}
+                  </div>
+                )}
                 {t.pppPendienteIEB && (
                   <div className="mt-0.5">
                     {t.costoManual && (
@@ -344,17 +378,8 @@ export default function TablaTenencias({ tenencias }) {
               </>
             )}
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-            {t.esCash ? "—" : t.cclCompra == null ? "—" : formatoARS2.format(t.cclCompra)}
-          </td>
           <td className="px-2 py-1.5 align-top tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>
             <ValorSensible>{formatoMoneda(valorMostrado, monedaValor)}</ValorSensible>
-          </td>
-          <td
-            className="px-2 py-1.5 align-top tabular-nums"
-            style={{ color: t.retornoPct == null ? "var(--text-muted)" : t.retornoPct >= 0 ? "var(--good)" : "var(--bad)" }}
-          >
-            {t.retornoPct == null ? "—" : formatoPct.format(t.retornoPct)}
           </td>
           <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {pctCartera == null ? "—" : formatoPct.format(pctCartera).replace(/^\+/, "")}
@@ -447,8 +472,13 @@ export default function TablaTenencias({ tenencias }) {
               <ColumnaConAncho columna="cantidad" ancho={anchos.cantidad} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
                 <BotonOrden columna="cantidad" ordenActual={orden} onClick={alHacerClick}>Cantidad</BotonOrden>
               </ColumnaConAncho>
-              <ColumnaConAncho columna="variacionDiaria" ancho={anchos.variacionDiaria} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
-                <BotonOrden columna="variacionDiaria" ordenActual={orden} onClick={alHacerClick}>Hoy</BotonOrden>
+              <ColumnaConAncho columna="retorno" ancho={anchos.retorno} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
+                <BotonOrden columna="retorno" ordenActual={orden} onClick={alHacerClick}>Retorno</BotonOrden>
+              </ColumnaConAncho>
+              <ColumnaConAncho columna="diasTenencia" ancho={anchos.diasTenencia} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5" title="Días desde el lote abierto más antiguo de la posición (lo de hoy se cuenta 0)">
+                <BotonOrden columna="diasTenencia" ordenActual={orden} onClick={alHacerClick}>
+                  Días de tenencia
+                </BotonOrden>
               </ColumnaConAncho>
               <ColumnaConAncho columna="precio" ancho={anchos.precio} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
                 <BotonOrden columna="precio" ordenActual={orden} onClick={alHacerClick}>
@@ -460,16 +490,8 @@ export default function TablaTenencias({ tenencias }) {
                   Costo prom. {modo === "usa" ? "(USD)" : "(ARS)"}
                 </BotonOrden>
               </ColumnaConAncho>
-              <ColumnaConAncho columna="cclCompra" ancho={anchos.cclCompra} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5" title="Dólar CCL promedio de las compras de esta tenencia">
-                <BotonOrden columna="cclCompra" ordenActual={orden} onClick={alHacerClick}>
-                  Dolar CCL promedio
-                </BotonOrden>
-              </ColumnaConAncho>
               <ColumnaConAncho columna="valor" ancho={anchos.valor} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
-                <BotonOrden columna="valor" ordenActual={orden} onClick={alHacerClick}>Valor {modo === "usa" ? "(USD)" : "(ARS)"}</BotonOrden>
-              </ColumnaConAncho>
-              <ColumnaConAncho columna="retorno" ancho={anchos.retorno} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
-                <BotonOrden columna="retorno" ordenActual={orden} onClick={alHacerClick}>Retorno</BotonOrden>
+                <BotonOrden columna="valor" ordenActual={orden} onClick={alHacerClick}>Posición {modo === "usa" ? "(USD)" : "(ARS)"}</BotonOrden>
               </ColumnaConAncho>
               <ColumnaConAncho columna="pct" ancho={anchos.pct} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5" title="% de tu cartera total">
                 <BotonOrden columna="pct" ordenActual={orden} onClick={alHacerClick}>
@@ -482,13 +504,12 @@ export default function TablaTenencias({ tenencias }) {
           <tbody>
             {grupos.map((g) => {
               const abierto = gruposAbiertos.has(g.id);
-              const totalGrupo = g.filas.reduce((acc, t) => acc + (t.valorActualARS || 0), 0);
-              const cclActual = live?.ccl ?? null;
-              const totalGrupoMostrado = modo === "usa" && cclActual ? totalGrupo / cclActual : totalGrupo;
+              const totalGrupo = g.filas.reduce((acc, t) => acc + (valorDe(t) || 0), 0);
+              const totalGrupoMostrado = totalGrupo;
               return (
                 <Fragment key={g.id}>
                   <tr className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
-                    <td colSpan={9} className="px-3 py-1.5">
+                    <td colSpan={8} className="px-3 py-1.5">
                       <button
                         type="button"
                         onClick={() => alternarGrupo(g.id)}
