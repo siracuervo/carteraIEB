@@ -8,12 +8,16 @@ const OPCIONES_ORDEN = [
   { id: "alfabetico", etiqueta: "A–Z" },
 ];
 
-/** Activos operados en forma de lista, con orden por cantidad de operaciones o alfabético. */
+/** Activos operados en forma de lista, con búsqueda y orden por cantidad de operaciones o alfabético. */
 export default function ListaActivos({ activos }) {
   const [orden, setOrden] = useState("operaciones");
+  const [busqueda, setBusqueda] = useState("");
 
-  const ordenada = useMemo(() => {
-    const lista = [...activos];
+  const filtrados = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    const lista = q
+      ? activos.filter((a) => `${a.ticker || ""} ${a.activo || ""}`.toLowerCase().includes(q))
+      : [...activos];
     if (orden === "alfabetico") {
       lista.sort((a, b) => (a.ticker || a.activo).localeCompare(b.ticker || b.activo));
     } else {
@@ -23,11 +27,18 @@ export default function ListaActivos({ activos }) {
       );
     }
     return lista;
-  }, [activos, orden]);
+  }, [activos, orden, busqueda]);
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar ticker o nombre"
+          className="rounded border px-2 py-1 text-sm"
+          style={{ borderColor: "var(--border)", background: "var(--surface-1)", color: "var(--text-primary)" }}
+        />
         {OPCIONES_ORDEN.map((o) => {
           const activo = orden === o.id;
           return (
@@ -49,7 +60,7 @@ export default function ListaActivos({ activos }) {
       </div>
 
       <div className="overflow-hidden rounded-lg border" style={{ borderColor: "var(--border)" }}>
-        {ordenada.map((a, i) => (
+        {filtrados.map((a, i) => (
           <Link
             key={a.clave}
             href={`/activo/${encodeURIComponent(a.clave)}`}
@@ -57,7 +68,7 @@ export default function ListaActivos({ activos }) {
             style={{
               display: "flex",
               background: "var(--surface-1)",
-              borderBottom: i < ordenada.length - 1 ? "1px solid var(--gridline)" : "none",
+              borderBottom: i < filtrados.length - 1 ? "1px solid var(--gridline)" : "none",
             }}
           >
             <div className="min-w-0">
@@ -76,6 +87,11 @@ export default function ListaActivos({ activos }) {
             </div>
           </Link>
         ))}
+        {!filtrados.length && (
+          <p className="px-4 py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+            No hay activos que coincidan con la búsqueda.
+          </p>
+        )}
       </div>
     </div>
   );

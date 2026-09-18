@@ -39,11 +39,22 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
   const trades = useMemo(() => resultados?.trades || [], [resultados]);
   const rendimientos = useMemo(() => resultados?.rendimientosTenencia || [], [resultados]);
   const totals = resultados?.totals || null;
-  // Variación de lo no operado ese día (renta fija excluida del mosaico).
+  // Variación de la posición que ya se tenía al cierre anterior (precio de ayer →
+  // hoy). Se calcula para TODOS los tickers holdeados, incluidos los que se
+  // operaron ese día (donde va como variación de la "tenencia previa" que quedó).
+  // La renta fija no computa en el mosaico.
   const totalSinOperar = useMemo(
     () => rendimientos.reduce((acc, r) => acc + (r.computa === false ? 0 : r.resultado ?? 0), 0),
     [rendimientos]
   );
+  const rendimientoPorClave = useMemo(() => {
+    const mapa = new Map();
+    for (const r of rendimientos) {
+      if (!r.clave || mapa.has(r.clave)) continue;
+      mapa.set(r.clave, r);
+    }
+    return mapa;
+  }, [rendimientos]);
 
   const tickers = useMemo(
     () => Array.from(new Set(trades.filter((t) => t.tipo === "compra" && t.ticker).map((t) => t.ticker))),
@@ -172,17 +183,24 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
     return ts.reduce((acc, t) => acc + (resultadoDe(t) ?? 0) + (computaPendienteDe(t) ?? 0), 0);
   }
 
+  // Variación de la tenencia previa de un ticker (lo que ya se tenía al cierre
+  // anterior). Se suma al subtotal del grupo aunque el ticker se haya operado ese
+  // día, para que la suma de los subtotales coincida con el Resultado del día.
+  function rendimientoBaseDe(clave) {
+    return rendimientoPorClave.get(clave) ?? null;
+  }
+
   // Tickers holdeados sin operar ese día: se agregan al final para mostrar todos
   // los rendimientos por ticker en un solo listado (vienen ordenados por |resultado|).
   const sinOperarPorClave = useMemo(() => {
     const conTrades = new Set(trades.map((t) => t.clave));
     const mapa = new Map();
-    for (const r of rendimientos) {
-      if (!r.clave || conTrades.has(r.clave) || mapa.has(r.clave)) continue;
-      mapa.set(r.clave, r);
+    for (const [clave, r] of rendimientoPorClave) {
+      if (conTrades.has(clave)) continue;
+      mapa.set(clave, r);
     }
     return mapa;
-  }, [trades, rendimientos]);
+  }, [trades, rendimientoPorClave]);
 
   const gruposTodos = useMemo(
     () => [...grupos, ...Array.from(sinOperarPorClave.keys()).map((clave) => [clave, []])],
@@ -237,7 +255,10 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
               const abierto = expandidos.has(clave);
               const totalComprado = ts.filter((t) => t.tipo === "compra").reduce((acc, t) => acc + t.cantidad, 0);
               const totalVendido = ts.filter((t) => t.tipo === "venta").reduce((acc, t) => acc + t.cantidad, 0);
-              const subtotal = sinOperar ? (sinOperar.resultado ?? 0) : resultadoDeGrupo(ts);
+              const base = sinOperar ? null : rendimientoBaseDe(clave);
+              const subtotal = sinOperar
+                ? (sinOperar.resultado ?? 0)
+                : resultadoDeGrupo(ts) + (base && base.computa !== false ? base.resultado ?? 0 : 0);
               return (
                 <Fragment key={clave}>
                   <tr className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
@@ -350,12 +371,29 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
                   )}
                   {abierto && !sinOperar && (() => {
                       const filas = [];
+                      // Compras anteriores que dieron origen a las ventas del grupo,
+                      // consolidadas por lote (fecha/precio/tamaño) para no repetir la
+                      // misma compra cuando varias ventas del día consumen de ella. Se
+                      // muestra el lote completo y debajo las unidades vendidas.
+                      const origenes = new Map();
                       ts.forEach((t) => {
-                        if (t.tipo === "venta") {
-                          for (const o of t.origenes || []) filas.push({ tipo: "origen", fecha: o.fecha, o, t });
+                        if (t.tipo !== "venta") return;
+                        for (const o of t.origenes || []) {
+                          const lote = o.cantidadLote ?? o.cantidad;
+                          const key = `${o.fecha}|${o.precio}|${lote}`;
+                          const acc = origenes.get(key) || {
+                            fecha: o.fecha,
+                            precio: o.precio,
+                            cantidadLote: lote,
+                            cantidad: 0,
+                            id: `${t.clave}__origen__${key}`,
+                          };
+                          acc.cantidad += o.cantidad;
+                          origenes.set(key, acc);
                         }
-                        filas.push({ tipo: "trade", fecha: t.fecha, t });
                       });
+                      for (const o of origenes.values()) filas.push({ tipo: "origen", fecha: o.fecha, o });
+                      ts.forEach((t) => filas.push({ tipo: "trade", fecha: t.fecha, t }));
                       const operaciones = filas
                         .map((f, idx) => ({ ...f, idx }))
                         .sort((a, b) => {
@@ -374,11 +412,12 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
                           if (f.tipo === "origen") {
                             const o = f.o;
                             return (
-                              <tr key={`${f.t.id}-origen-${f.idx}`} className="border-b last:border-0" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+                              <tr key={`${o.id}-${f.idx}`} className="border-b last:border-0" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
                                 <td className="px-3 py-2 align-top">
                                   <span
                                     className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
                                     style={{ color: "var(--good)", background: "rgba(22, 163, 74, 0.08)" }}
+                                    title="Compra anterior que dio origen a las unidades vendidas ese día (la venta consume primero las compras más viejas)"
                                   >
                                     Compra
                                   </span>
@@ -390,7 +429,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
                                   {formatoARS2.format(o.precio)}
                                 </td>
                                 <td className="px-3 py-2 align-top tabular-nums">
-                                  <Cantidad trade={{ tipo: "compra", cantidad: o.cantidad }} />
+                                  <Cantidad trade={{ tipo: "compra", cantidad: o.cantidadLote ?? o.cantidad }} />
                                 </td>
                                 <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
                                 <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
@@ -480,100 +519,124 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
                           );
                         });
 
-                      // Tenencia pendiente consolidada en UNA fila por ticker: suma las
-                      // cantidades abiertas del día a precio promedio ponderado.
+                      // Tenencia al cierre en UNA sola fila por ticker: la posición que
+                      // quedó abierta al final del día, sin separar lo previo de lo
+                      // comprado hoy. La base es el promedio ponderado entre el cierre
+                      // anterior (para lo que ya se tenía) y el precio de compra (para
+                      // lo del día); el resultado es la variación de cada tramo contra
+                      // su propia base.
                       const abiertas = ts.filter((t) => t.tipo === "compra" && t.cantidadPendiente > 0);
-                      const pendientes = (() => {
-                        if (!abiertas.length) return [];
+                      const pendiente = (() => {
+                        if (!abiertas.length) return null;
                         const primera = abiertas[0];
                         const precioVivo = precioActualDe(primera);
                         const factor = primera.factorPrecio ?? 1;
-                        const rentaFija = esRentaFija(primera);
-                        const totalPendiente = abiertas.reduce((acc, t) => acc + t.cantidadPendiente, 0);
+                        const total = abiertas.reduce((acc, t) => acc + t.cantidadPendiente, 0);
                         const conPrecio = abiertas.filter((t) => t.precio != null);
-                        const montoPonderado = conPrecio.reduce((acc, t) => acc + t.precio * t.cantidadPendiente, 0);
                         const cantidadConPrecio = conPrecio.reduce((acc, t) => acc + t.cantidadPendiente, 0);
-                        const precioPromedio = cantidadConPrecio > 0 ? montoPonderado / cantidadConPrecio : null;
-                        const rendimiento =
-                          precioVivo != null && precioPromedio != null
-                            ? (precioVivo - precioPromedio) * totalPendiente * factor
+                        const precioPromedio =
+                          cantidadConPrecio > 0
+                            ? conPrecio.reduce((acc, t) => acc + t.precio * t.cantidadPendiente, 0) / cantidadConPrecio
                             : null;
-                        const porcentaje =
-                          precioVivo != null && precioPromedio > 0 ? precioVivo / precioPromedio - 1 : null;
-                        return [
-                          <tr
-                            key={`${clave}__pendiente`}
-                            className="border-b last:border-0"
-                            style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
-                          >
-                            <td className="px-3 py-2 align-top">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span
-                                  className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
-                                  style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
-                                  title={
-                                    abiertas.length > 1
-                                      ? `${abiertas.length} compras del día consolidadas a precio promedio`
-                                      : undefined
-                                  }
-                                >
-                                  Tenencia pendiente
-                                  {abiertas.length > 1 ? ` (${abiertas.length})` : ""}
-                                </span>
-                                {rentaFija && (
-                                  <span
-                                    className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium"
-                                    style={{ color: "var(--text-muted)", border: "1px dashed var(--border)" }}
-                                    title="Se muestra a modo informativo y no se suma al Resultado del día"
-                                  >
-                                    no computa
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                              {formatoFechaCorta.format(fechaLocal(primera.fecha))}
-                            </td>
-                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                              {precioPromedio == null ? (
-                                <span style={{ color: "var(--text-muted)" }}>—</span>
-                              ) : (
-                                formatoARS2.format(precioPromedio)
-                              )}
-                            </td>
-                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                              <ValorSensible>{totalPendiente.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
-                            </td>
-                            <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                              {precioVivo == null ? (
-                                <span style={{ color: "var(--bad)" }}>sin precio</span>
-                              ) : (
-                                formatoARS2.format(precioVivo)
-                              )}
-                            </td>
-                            <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(rendimiento) }}>
-                              {rendimiento == null ? (
-                                <span style={{ color: "var(--text-muted)" }}>—</span>
-                              ) : (
-                                <ValorSensible>
-                                  {signo(rendimiento)}{formatoARS.format(Math.abs(rendimiento))}
-                                </ValorSensible>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
-                              {porcentaje == null ? (
-                                <span style={{ color: "var(--text-muted)" }}>—</span>
-                              ) : (
-                                <ValorSensible>
-                                  {signo(porcentaje)}{(Math.abs(porcentaje) * 100).toFixed(2)}%
-                                </ValorSensible>
-                              )}
-                            </td>
-                          </tr>,
-                        ];
+                        const resultado =
+                          precioVivo != null && precioPromedio != null
+                            ? (precioVivo - precioPromedio) * total * factor
+                            : null;
+                        return {
+                          cantidad: total,
+                          precioBase: precioPromedio,
+                          precioActual: precioVivo,
+                          resultado,
+                          rentaFija: esRentaFija(primera),
+                        };
                       })();
 
-                      return [...operaciones, ...pendientes];
+                      const cierre = (() => {
+                        if (!base && !pendiente) return null;
+                        const cantidad = (base?.cantidad ?? 0) + (pendiente?.cantidad ?? 0);
+                        if (!(cantidad > 0)) return null;
+                        const baseMonetaria =
+                          (base ? base.precioAyer * base.cantidad : 0) +
+                          (pendiente?.precioBase != null ? pendiente.precioBase * pendiente.cantidad : 0);
+                        const resultado = (base?.resultado ?? 0) + (pendiente?.resultado ?? 0);
+                        return {
+                          cantidad,
+                          precioBase: baseMonetaria > 0 ? baseMonetaria / cantidad : null,
+                          precioActual: pendiente?.precioActual ?? base?.precioActual ?? null,
+                          resultado,
+                          pct: baseMonetaria > 0 ? resultado / baseMonetaria : null,
+                          rentaFija: base?.computa === false || (pendiente?.rentaFija ?? false),
+                        };
+                      })();
+
+                      const filaCierre = cierre
+                        ? [
+                            <tr
+                              key={`${clave}__cierre`}
+                              className="border-b last:border-0"
+                              style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
+                            >
+                              <td className="px-3 py-2 align-top">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span
+                                    className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+                                    style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
+                                    title="Posición que quedó abierta al cierre del día: lo que ya se tenía valuado contra el cierre anterior y lo comprado ese día valuado contra su precio de compra."
+                                  >
+                                    Tenencia al cierre
+                                  </span>
+                                  {cierre.rentaFija && (
+                                    <span
+                                      className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium"
+                                      style={{ color: "var(--text-muted)", border: "1px dashed var(--border)" }}
+                                      title="Se muestra a modo informativo y no se suma al Resultado del día"
+                                    >
+                                      no computa
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                                {resultados?.dia ? formatoFechaCorta.format(fechaLocal(resultados.dia)) : "—"}
+                              </td>
+                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                                {cierre.precioBase == null ? (
+                                  <span style={{ color: "var(--text-muted)" }}>—</span>
+                                ) : (
+                                  <span title="Base del resultado: cierre anterior para lo que ya se tenía y precio de compra para lo del día">
+                                    {formatoARS2.format(cierre.precioBase)}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                                <ValorSensible>{cierre.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
+                              </td>
+                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                                {cierre.precioActual == null ? (
+                                  <span style={{ color: "var(--bad)" }}>sin precio</span>
+                                ) : (
+                                  formatoARS2.format(cierre.precioActual)
+                                )}
+                              </td>
+                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(cierre.resultado) }}>
+                                <ValorSensible>
+                                  {signo(cierre.resultado)}{formatoARS.format(Math.abs(cierre.resultado))}
+                                </ValorSensible>
+                              </td>
+                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(cierre.pct) }}>
+                                {cierre.pct == null ? (
+                                  "—"
+                                ) : (
+                                  <ValorSensible>
+                                    {signo(cierre.pct)}{(Math.abs(cierre.pct) * 100).toFixed(2)}%
+                                  </ValorSensible>
+                                )}
+                              </td>
+                            </tr>,
+                          ]
+                        : [];
+
+                      return [...operaciones, ...filaCierre];
                     })()}
                 </Fragment>
               );

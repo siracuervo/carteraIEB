@@ -32,34 +32,38 @@ export default function ResumenCartera({ resumen, tipoCambioCCL }) {
 
   return (
     <div>
-      <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <div className="text-sm" style={{ color: "var(--text-primary)" }}>Valor de cartera</div>
-            <div className="mt-1 text-2xl font-semibold tabular-nums lg:text-3xl" style={{ color: "var(--text-primary)" }}>
-              <ValorSensible>{formatoARS.format(valorTotalARS)}</ValorSensible>
+      <div className={`grid grid-cols-2 gap-3 ${efectivoARS > 0 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+        <div
+          className="col-span-2 rounded-lg border p-4"
+          style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-sm" style={{ color: "var(--text-primary)" }}>Valor de cartera</div>
+              <div className="mt-1 text-2xl font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                <ValorSensible>{formatoARS.format(valorTotalARS)}</ValorSensible>
+              </div>
+              <ValorEnDolarOficial valorARS={valorTotalARS} />
             </div>
-            <ValorEnDolarOficial valorARS={valorTotalARS} />
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <BotonActualizarTodo texto="actualizar todo" />
-            <DolarCCLEnVivo referencia={tipoCambioCCL} />
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <BotonActualizarTodo texto="actualizar todo" />
+              <DolarCCLEnVivo referencia={tipoCambioCCL} />
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className={`mt-3 grid gap-3 ${efectivoARS > 0 ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2"}`}>
         <Tarjeta
           etiqueta="Invertido"
           valor={<ValorSensible>{formatoARS.format(invertidoTotalARS)}</ValorSensible>}
-          style={efectivoARS > 0 ? undefined : { gridColumn: "1 / -1" }}
         />
         {efectivoARS > 0 && (
           <Tarjeta etiqueta="Efectivo" valor={<ValorSensible>{formatoARS.format(efectivoARS)}</ValorSensible>} />
         )}
+      </div>
+
+      <div className="mt-3">
         <Tarjeta
           etiqueta="Composición de cartera"
-          style={{ gridColumn: "span 2" }}
           valor={
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3" title="Proporciones sobre el valor en ARS de las posiciones valuadas">
               {(composicion ?? []).map((grupo) => (

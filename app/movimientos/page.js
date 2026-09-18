@@ -1,7 +1,7 @@
 import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
-import { importarMovimientos } from "@/app/actions";
+import { importarOperacionesDelDia } from "@/app/actions";
 import FormularioImportar from "@/app/components/FormularioImportar";
 import FormularioOperacionManual from "@/app/components/FormularioOperacionManual";
 import FormularioFondos from "@/app/components/FormularioFondos";
@@ -11,8 +11,6 @@ import ListaMovimientos from "@/app/components/ListaMovimientos";
 import SeccionCarga from "@/app/components/SeccionCarga";
 
 export const dynamic = "force-dynamic";
-
-const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 function esCompra(t) {
   return (t.operacion || "").toUpperCase().includes("COMPRA");
@@ -83,14 +81,8 @@ export default async function MovimientosPage() {
   const listaActivos = Array.from(activosOperados.values()).sort((a, b) =>
     (a.ticker || a.activo).localeCompare(b.ticker || b.activo)
   );
-
-  let primera = null;
-  let ultima = null;
-  for (const t of transacciones) {
-    if (!t.fecha) continue;
-    if (!primera || t.fecha < primera) primera = t.fecha;
-    if (!ultima || t.fecha > ultima) ultima = t.fecha;
-  }
+  // Tickers ya operados alguna vez, para el desplegable buscable del formulario manual.
+  const tickersOperados = listaActivos.filter((a) => a.ticker).map((a) => ({ ticker: a.ticker, activo: a.activo }));
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
@@ -103,6 +95,63 @@ export default async function MovimientosPage() {
           en la página de cada activo y alimentan el historial de la cartera.
         </p>
       </div>
+
+      <SeccionCarga
+        titulo="Ingresos y retiros de fondos"
+        abierta={false}
+        estadoActual={movimientosFondos.length ? `${movimientosFondos.length} movimientos` : null}
+        descripcion="Plata que entra o sale por fuera del mercado (depósitos, transferencias, retiros). Entra a caja de inmediato: un ingreso sube el efectivo y el total ese mismo día, y si después comprás con esa plata, la compra lo descuenta por su propio ticket — no se duplica."
+      >
+        <div className="space-y-4">
+          <FormularioFondos />
+          <ListaFondos fondos={movimientosFondos} />
+        </div>
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Todas las operaciones"
+        abierta={true}
+        estadoActual={`${ordenadas.length} operaciones`}
+        descripcion="Los movimientos importados y cargados a mano, con filtros por búsqueda, tipo y divisa. Se muestran día por día (podés pasar de un día a otro) y, si cargás Desde y Hasta, se ve el rango completo."
+      >
+        <ListaMovimientos transacciones={ordenadas} />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Operaciones del día (compras y ventas)"
+        abierta={false}
+        descripcion="El export diario de IEB “Operaciones del día” trae las compras y ventas del día con cantidad, precio e importe ya calculados. Se agrega a esta misma lista de movimientos sin duplicar."
+      >
+        <FormularioImportar
+          accion={importarOperacionesDelDia}
+          tipo="operaciones-del-dia"
+          id="archivo-operaciones-del-dia"
+          tituloDropzone="Elegí el export de Operaciones del día"
+          ayudaDropzone=".xlsx — podés seleccionar más de uno; se agregan como compras y ventas sin duplicar"
+          textoBoton="Importar como compras y ventas"
+        />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Agregar operación a mano"
+        abierta={false}
+        descripcion="Para alguna compra o venta que IEB no tenga en tus exports, o que quieras corregir. Se guarda igual que el resto de los movimientos y aparece en la página del activo."
+      >
+        <FormularioOperacionManual activos={tickersOperados} />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Activos operados"
+        abierta={false}
+        estadoActual={`${listaActivos.length} activos`}
+        descripcion="Cada activo con compras o ventas registradas, con acceso directo a su página de detalle (historial completo, totales y resultado por venta)."
+      >
+        {listaActivos.length ? (
+          <ListaActivos activos={listaActivos} />
+        ) : (
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Todavía no hay compras ni ventas registradas.</p>
+        )}
+      </SeccionCarga>
 
       {transacciones.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -141,69 +190,6 @@ export default async function MovimientosPage() {
           </div>
         </div>
       )}
-
-      <SeccionCarga
-        titulo="Todas las operaciones"
-        abierta={false}
-        estadoActual={`${ordenadas.length} operaciones`}
-        descripcion="La lista completa de movimientos importados y cargados a mano, con filtros por búsqueda, tipo, divisa y rango de fechas."
-      >
-        <ListaMovimientos transacciones={ordenadas} />
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Importar movimientos"
-        abierta={false}
-        estadoActual={
-          transacciones.length
-            ? `${transacciones.length} operaciones importadas` +
-              (primera && ultima ? ` · ${formatoFecha.format(fechaLocal(primera))} → ${formatoFecha.format(fechaLocal(ultima))}` : "")
-            : null
-        }
-        descripcion="En IEB descargá el export de “Toda la actividad” (y de paso el “Histórico de tenencia”, si lo tenés): el segundo completa cantidad y precio a operaciones que el primero solo trae sin detalle. Se puede importar varias veces, los archivos se van integrando sin duplicar."
-      >
-        <FormularioImportar
-          accion={importarMovimientos}
-          tipo="movimientos"
-          id="archivo-movimientos"
-          tituloDropzone="Elegí los exports de IEB con tus movimientos"
-          ayudaDropzone=".xlsx — podés seleccionar más de uno; se juntan y se deduplican solos"
-          textoBoton="Importar movimientos"
-        />
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Agregar operación a mano"
-        abierta={false}
-        descripcion="Para alguna compra o venta que IEB no tenga en tus exports, o que quieras corregir. Se guarda igual que el resto de los movimientos y aparece en la página del activo."
-      >
-        <FormularioOperacionManual />
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Ingresos y retiros de fondos"
-        abierta={false}
-        estadoActual={movimientosFondos.length ? `${movimientosFondos.length} movimientos` : null}
-        descripcion="Plata que entra o sale por fuera del mercado (depósitos, transferencias, retiros). Entra a caja de inmediato: un ingreso sube el efectivo y el total ese mismo día, y si después comprás con esa plata, la compra lo descuenta por su propio ticket — no se duplica."
-      >
-        <div className="space-y-4">
-          <FormularioFondos />
-          <ListaFondos fondos={movimientosFondos} />
-        </div>
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Activos operados"
-        abierta={false}
-        estadoActual={`${listaActivos.length} activos`}
-        descripcion="Cada activo con compras o ventas registradas, con acceso directo a su página de detalle (historial completo, totales y resultado por venta)."
-      >
-        {listaActivos.length ? (
-          <ListaActivos activos={listaActivos} />
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>Todavía no hay compras ni ventas registradas.</p>
-        )}
-      </SeccionCarga>
     </main>
   );
 }

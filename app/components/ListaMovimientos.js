@@ -70,6 +70,9 @@ export default function ListaMovimientos({ transacciones }) {
   const [hasta, setHasta] = useState("");
   const [divisa, setDivisa] = useState("todas");
   const [editandoClave, setEditandoClave] = useState(null);
+  // Cuando no hay rango (Desde/Hasta) la lista se acota a un día por vez: así no
+  // crece sin límite hacia abajo. `null` = todavía no eligió, se usa el más reciente.
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -86,6 +89,38 @@ export default function ListaMovimientos({ transacciones }) {
     });
   }, [transacciones, busqueda, tipo, desde, hasta, divisa]);
 
+  // Días con operaciones (más reciente primero), para la navegación día a día.
+  const dias = useMemo(() => {
+    const set = new Set();
+    for (const t of filtradas) if (t.fecha) set.add(t.fecha);
+    return Array.from(set).sort((a, b) => b.localeCompare(a));
+  }, [filtradas]);
+
+  const enRango = Boolean(desde || hasta);
+  const indiceDia = useMemo(() => {
+    if (enRango || !dias.length) return -1;
+    const i = dias.indexOf(diaSeleccionado);
+    return i >= 0 ? i : 0;
+  }, [dias, diaSeleccionado, enRango]);
+  const diaEfectivo = indiceDia >= 0 ? dias[indiceDia] : null;
+
+  // En modo día se muestra solo ese día (las operaciones sin fecha se dejan visibles);
+  // con rango, todos los días del rango, agrupados por día.
+  const visibles = useMemo(() => {
+    if (enRango || !diaEfectivo) return filtradas;
+    return filtradas.filter((t) => t.fecha === diaEfectivo || !t.fecha);
+  }, [filtradas, enRango, diaEfectivo]);
+
+  const grupos = useMemo(() => {
+    const mapa = new Map();
+    for (const t of visibles) {
+      const k = t.fecha || "";
+      if (!mapa.has(k)) mapa.set(k, []);
+      mapa.get(k).push(t);
+    }
+    return Array.from(mapa.entries());
+  }, [visibles]);
+
   const hayFiltro = Boolean(busqueda || tipo !== "todas" || desde || hasta || divisa !== "todas");
 
   function limpiar() {
@@ -94,6 +129,7 @@ export default function ListaMovimientos({ transacciones }) {
     setDesde("");
     setHasta("");
     setDivisa("todas");
+    setDiaSeleccionado(null);
   }
 
   return (
@@ -136,12 +172,59 @@ export default function ListaMovimientos({ transacciones }) {
             <input type="date" value={hasta} style={estiloInput} className="rounded border px-2 py-1 text-sm" onChange={(e) => setHasta(e.target.value)} />
           </label>
         </div>
-        {hayFiltro && (
-          <button type="button" onClick={limpiar} className="mt-3 text-xs underline" style={{ color: "var(--text-muted)" }}>
-            Limpiar filtros
-          </button>
-        )}
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Sin Desde/Hasta la lista se recorre día por día; completá ambos para ver un rango.
+          </span>
+          {hayFiltro && (
+            <button type="button" onClick={limpiar} className="text-xs underline" style={{ color: "var(--text-muted)" }}>
+              Limpiar filtros
+            </button>
+          )}
+        </div>
       </div>
+
+      {!enRango && dias.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 px-4">
+          <button
+            type="button"
+            onClick={() => setDiaSeleccionado(dias[indiceDia + 1])}
+            disabled={indiceDia >= dias.length - 1}
+            className="cursor-pointer rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-default disabled:opacity-40"
+            style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+          >
+            ← Día anterior
+          </button>
+          <select
+            value={diaEfectivo ?? ""}
+            onChange={(e) => setDiaSeleccionado(e.target.value)}
+            className="rounded border px-2 py-1 text-sm"
+            style={estiloInput}
+          >
+            {dias.map((d) => (
+              <option key={d} value={d}>{formatoFecha.format(fechaLocal(d))}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setDiaSeleccionado(dias[indiceDia - 1])}
+            disabled={indiceDia <= 0}
+            className="cursor-pointer rounded-md border px-2.5 py-1 text-xs font-medium disabled:cursor-default disabled:opacity-40"
+            style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+          >
+            Día siguiente →
+          </button>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Día {indiceDia + 1} de {dias.length} · {visibles.length} {visibles.length === 1 ? "operación" : "operaciones"}
+          </span>
+        </div>
+      )}
+      {enRango && (
+        <p className="mt-3 px-4 text-xs" style={{ color: "var(--text-muted)" }}>
+          Mostrando {grupos.length} {grupos.length === 1 ? "día" : "días"} del rango · {visibles.length}{" "}
+          {visibles.length === 1 ? "operación" : "operaciones"}. Para recorrer día por día, dejá Desde y Hasta vacíos.
+        </p>
+      )}
 
       <div className="mt-3 overflow-x-auto">
         <table className="w-full text-sm">
@@ -159,66 +242,75 @@ export default function ListaMovimientos({ transacciones }) {
             </tr>
           </thead>
           <tbody>
-            {filtradas.map((t, i) => {
-              const { texto: importe, estimado } = importeMostrado(t);
-              const venta = esVenta(t);
-              return (
-                <Fragment key={t.clave ?? `${t.activo}-${t.nroOperacion}-${t.fecha}-${i}`}>
-                <tr
-                  style={{ borderBottom: i < filtradas.length - 1 ? "1px solid var(--gridline)" : "none" }}
-                >
-                  <td className="whitespace-nowrap px-3 py-2 tabular-nums" style={{ color: "var(--text-primary)" }}>
-                    {t.fecha
-                      ? `${formatoFecha.format(fechaLocal(t.fecha))}${t.hora ? ` · ${t.hora}` : ""}`
-                      : "—"}
-                  </td>
-                  <td className="px-3 py-2" style={{ color: "var(--text-primary)", minWidth: 140 }}>
-                    <span className="block">{t.ticker || t.activo || "Sin nombre"}</span>
-                    {t.ticker && (
-                      <span className="block text-xs" style={{ color: "var(--text-muted)" }}>{t.activo}</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2">
-                    <span style={{ color: venta ? "var(--bad)" : "var(--good)" }} title={t.operacion}>{operacionCorta(t)}</span>
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
-                    {t.cantidad != null ? t.cantidad.toLocaleString("es-AR") : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
-                    {formatoPrecio(t.precio, t.divisa || "ARS", clasificar({ activo: t.activo, ticker: t.ticker, operacion: t.operacion }).claseActivo)}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
-                    {importe}
-                    {estimado && (
-                      <span className="ml-1 text-xs" style={{ color: "var(--text-muted)" }}>(est.)</span>
-                    )}
-                  </td>
-                  <td
-                    className="whitespace-nowrap px-3 py-2 text-right"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setEditandoClave((actual) => (actual === t.clave ? null : t.clave))}
-                      className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors"
-                      style={{ borderColor: "var(--marca)", color: "var(--marca)", background: "var(--surface-2)" }}
-                    >
-                      {editandoClave === t.clave ? "Cerrar" : "Editar"}
-                    </button>
-                  </td>
-                </tr>
-                  {editandoClave === t.clave && (
-                    <tr style={{ borderBottom: i < filtradas.length - 1 ? "1px solid var(--gridline)" : "none" }}>
-                      <td colSpan={7} className="px-4 py-2">
-                        <FormEditarOperacion transaccion={t} onCancelar={() => setEditandoClave(null)} />
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
+            {grupos.map(([fecha, items], indiceGrupo) => (
+              <Fragment key={fecha || "sin-fecha"}>
+                {enRango && (
+                  <tr style={{ background: "var(--surface-2)" }}>
+                    <td colSpan={7} className="px-3 py-1.5 text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                      {fecha ? formatoFecha.format(fechaLocal(fecha)) : "Sin fecha"} · {items.length}{" "}
+                      {items.length === 1 ? "operación" : "operaciones"}
+                    </td>
+                  </tr>
+                )}
+                {items.map((t, i) => {
+                  const { texto: importe, estimado } = importeMostrado(t);
+                  const venta = esVenta(t);
+                  const borde = indiceGrupo === grupos.length - 1 && i === items.length - 1 ? "none" : "1px solid var(--gridline)";
+                  return (
+                    <Fragment key={t.clave ?? `${t.activo}-${t.nroOperacion}-${t.fecha}-${i}`}>
+                      <tr style={{ borderBottom: borde }}>
+                        <td className="whitespace-nowrap px-3 py-2 tabular-nums" style={{ color: "var(--text-primary)" }}>
+                          {t.fecha
+                            ? `${formatoFecha.format(fechaLocal(t.fecha))}${t.hora ? ` · ${t.hora}` : ""}`
+                            : "—"}
+                        </td>
+                        <td className="px-3 py-2" style={{ color: "var(--text-primary)", minWidth: 140 }}>
+                          <span className="block">{t.ticker || t.activo || "Sin nombre"}</span>
+                          {t.ticker && (
+                            <span className="block text-xs" style={{ color: "var(--text-muted)" }}>{t.activo}</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <span style={{ color: venta ? "var(--bad)" : "var(--good)" }} title={t.operacion}>{operacionCorta(t)}</span>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
+                          {t.cantidad != null ? t.cantidad.toLocaleString("es-AR") : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
+                          {formatoPrecio(t.precio, t.divisa || "ARS", clasificar({ activo: t.activo, ticker: t.ticker, operacion: t.operacion }).claseActivo)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
+                          {importe}
+                          {estimado && (
+                            <span className="ml-1 text-xs" style={{ color: "var(--text-muted)" }}>(est.)</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setEditandoClave((actual) => (actual === t.clave ? null : t.clave))}
+                            className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors"
+                            style={{ borderColor: "var(--marca)", color: "var(--marca)", background: "var(--surface-2)" }}
+                          >
+                            {editandoClave === t.clave ? "Cerrar" : "Editar"}
+                          </button>
+                        </td>
+                      </tr>
+                      {editandoClave === t.clave && (
+                        <tr style={{ borderBottom: borde }}>
+                          <td colSpan={7} className="px-4 py-2">
+                            <FormEditarOperacion transaccion={t} onCancelar={() => setEditandoClave(null)} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </Fragment>
+            ))}
           </tbody>
         </table>
-        {!filtradas.length && (
+        {!visibles.length && (
           <p className="px-4 py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
             No hay operaciones que coincidan con los filtros.
           </p>

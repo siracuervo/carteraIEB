@@ -1,7 +1,7 @@
 import { leerPortafolioHistorial } from "@/lib/storage";
 import { obtenerDatosCartera } from "@/lib/datosCartera";
 import { fechaLocal } from "@/lib/fechas";
-import { importarPortafolio, importarOperacionesDelDia } from "@/app/actions";
+import { importarPortafolio } from "@/app/actions";
 import ResumenCartera from "./components/ResumenCartera";
 import DestacadosCartera from "./components/DestacadosCartera";
 import EvolucionPatrimonio from "./components/EvolucionPatrimonio";
@@ -86,21 +86,6 @@ export default async function CarteraPage({ searchParams }) {
           tituloDropzone="Elegí el reporte de Portafolio"
           ayudaDropzone=".xlsx — podés seleccionar más de uno si tenés varias fechas guardadas"
           textoBoton="Importar Portafolio"
-        />
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Operaciones del día (compras y ventas)"
-        abierta={false}
-        descripcion="El export diario de IEB “Operaciones del día” trae las compras y ventas del día con cantidad, precio e importe ya calculados. Se importa aparte del Portafolio y queda guardado en Compras y ventas, con el mismo formato que el resto de los movimientos."
-      >
-        <FormularioImportar
-          accion={importarOperacionesDelDia}
-          tipo="operaciones-del-dia"
-          id="archivo-operaciones-del-dia"
-          tituloDropzone="Elegí el export de Operaciones del día"
-          ayudaDropzone=".xlsx — podés seleccionar más de uno; se agregan como compras y ventas sin duplicar"
-          textoBoton="Importar como compras y ventas"
         />
       </SeccionCarga>
     </main>
