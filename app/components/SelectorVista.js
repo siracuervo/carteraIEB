@@ -9,6 +9,7 @@ import ValorSensible from "./ValorSensible";
 import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 import { factorPrecioPorClase } from "@/lib/calculos";
 import { fechaLocal } from "@/lib/fechas";
+import { aISO } from "@/lib/accesosRapidosFecha";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoFechaDia = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "2-digit", month: "long" });
@@ -33,7 +34,13 @@ function valorCierre(t) {
 export default function SelectorVista({ tenencias, resultadosDia, diasOperados, dia, tenenciasCierre, diasTenencia, diaTenencia }) {
   const [vista, setVista] = useState("tenencias");
   const [modo, setModo] = useState("cedear");
-  const esHistorico = diaTenencia != null && tenenciasCierre != null;
+  // Hoy no es "histórico": ver la tenencia de hoy es lo mismo que la vista en
+  // vivo (con refresco cada 60s), así ambas muestran siempre los mismos números.
+  const esHoy = diaTenencia != null && diaTenencia === aISO(new Date());
+  const esHistorico = !esHoy && diaTenencia != null && tenenciasCierre != null;
+  // El calendario no ofrece hoy (para eso está la vista en vivo).
+  const hoyISO = aISO(new Date());
+  const diasTenenciaSinHoy = useMemo(() => (diasTenencia || []).filter((d) => d !== hoyISO), [diasTenencia, hoyISO]);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -159,7 +166,7 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
                 </span>
               </div>
             )}
-            <CalendarioDias dias={diasTenencia} dia={diaTenencia} onElegir={cambiarDiaTenencia} />
+            <CalendarioDias dias={diasTenenciaSinHoy} dia={diaTenencia} onElegir={cambiarDiaTenencia} />
             {esHistorico && (
               <button
                 type="button"

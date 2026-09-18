@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { obtenerDatosCartera } from "@/lib/datosCartera";
 import { leerPortafolioHistorial, leerCierresDiarios } from "@/lib/storage";
 import { aISO } from "@/lib/accesosRapidosFecha";
-import { transaccionesDeActivo, factorPrecioPorClase } from "@/lib/calculos";
+import { transaccionesDeActivo, factorPrecioPorClase, importeConDerechos } from "@/lib/calculos";
 import { CLASES } from "@/lib/clasificacion";
 import { fechaLocal } from "@/lib/fechas";
 import Logo from "@/app/components/Logo";
@@ -56,10 +56,10 @@ function esVenta(m) {
 }
 
 /** Importe en ARS de una operación, en valor absoluto, o null si no hay forma confiable. */
-function importeAbsoluto(m, factorPrecio) {
+function importeAbsoluto(m, factorPrecio, esCompra) {
   if (m.importeARS != null) return Math.abs(m.importeARS);
   if (!esEstimable(m) || m.precio == null || m.cantidad == null) return null;
-  return Math.abs(m.cantidad * m.precio * factorPrecio);
+  return importeConDerechos(Math.abs(m.cantidad * m.precio * factorPrecio), esCompra);
 }
 
 function Tarjeta({ etiqueta, valor, color }) {
@@ -198,8 +198,8 @@ export default async function ActivoPage({ params, searchParams }) {
   const ventas = movimientos.filter(esVenta);
   const cantidadComprada = compras.reduce((acc, m) => acc + Math.abs(m.cantidad ?? 0), 0);
   const cantidadVendida = ventas.reduce((acc, m) => acc + Math.abs(m.cantidad ?? 0), 0);
-  const totalInvertido = compras.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio) ?? 0), 0);
-  const totalRecibido = ventas.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio) ?? 0), 0);
+  const totalInvertido = compras.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio, true) ?? 0), 0);
+  const totalRecibido = ventas.reduce((acc, m) => acc + (importeAbsoluto(m, factorPrecio, false) ?? 0), 0);
 
   const ventasPorId = new Map(ventasDelActivo.map((v) => [v.id, v]));
   const resultadoPorMovimiento = new Map();

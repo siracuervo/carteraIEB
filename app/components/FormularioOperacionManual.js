@@ -181,7 +181,7 @@ export default function FormularioOperacionManual({ activos = [] }) {
             name="importe"
             min="0"
             step="any"
-            placeholder="Si lo dejás vacío se estima Precio × Cantidad"
+            placeholder="Si lo dejás vacío se estima Precio × Cantidad + derechos"
             className="rounded border px-2 py-1 text-sm"
             style={estiloInput}
           />

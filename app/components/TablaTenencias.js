@@ -282,18 +282,24 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
   function precioParaOrden(t) {
     const cedear = liveVisible?.cedear?.[t.ticker];
     const usa = liveVisible?.usa?.[t.ticker];
-    return modoEfectivo === "usa" ? (usa?.precio ?? null) : (cedear?.precio ?? t.precioActual);
+    return modoEfectivo === "usa" ? (usa?.precio ?? null) : (precioVivoDe(t) ?? t.precioActual);
+  }
+
+  /** Precio vivo a mostrar: bonos al último operado, el resto a la punta vendedora. */
+  function precioVivoDe(t) {
+    const dato = t.ticker && liveVisible?.cedear ? liveVisible.cedear[t.ticker] : null;
+    if (!dato) return null;
+    return t.claseActivo === CLASES.BONO_SOBERANO ? (dato.ultimo ?? dato.precio) : dato.precio;
   }
 
   /** Valor de una tenencia con el precio en vivo que se muestra: precio × cantidad × factor (÷ dólar en modo USA). */
   function valorDe(t) {
     if (t.esCash) return t.valorActualARS;
     const ccl = liveVisible?.ccl ?? null;
-    const datoCedear = t.ticker && liveVisible?.cedear ? liveVisible.cedear[t.ticker] : null;
-    // El valor siempre se calcula con la cotización LOCAL en ARS (datoCedear.precio),
+    // El valor siempre se calcula con la cotización LOCAL en ARS (precioVivoDe),
     // que ya incluye el ratio del CEDEAR contra el subyacente. En modo USA solo cambia
     // la MONEDA mostrada (÷ CCL) — no se multiplica por el precio USD del subyacente.
-    const precioLocal = datoCedear?.precio ?? t.precioActual;
+    const precioLocal = precioVivoDe(t) ?? t.precioActual;
     const factorPrecio = factorPrecioPorClase(t.claseActivo);
     if (precioLocal == null) return modoEfectivo === "usa" && ccl ? t.valorActualARS / ccl : t.valorActualARS;
     const enARS = precioLocal * t.cantidad * factorPrecio;
@@ -302,7 +308,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
 
   function costoParaOrden(t) {
     if (modoEfectivo !== "usa") return t.costoPromedio;
-    const precioLocal = liveVisible?.cedear?.[t.ticker]?.precio;
+    const precioLocal = precioVivoDe(t);
     const precioUSA = liveVisible?.usa?.[t.ticker]?.precio;
     const ccl = liveVisible?.ccl;
     if (!(precioLocal > 0) || !(precioUSA > 0) || !(ccl > 0) || !(t.costoPromedioUSD > 0)) return null;

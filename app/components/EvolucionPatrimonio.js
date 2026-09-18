@@ -134,15 +134,24 @@ function Fila({ etiqueta, subtitulo, variacion }) {
           </div>
         </div>
       )}
+      {variacion.sinRentaFija && (
+        <div className="mt-1 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+          Sin renta fija:{" "}
+          <span style={{ color: variacion.sinRentaFija.diffARS >= 0 ? "var(--good)" : "var(--bad)" }}>
+            {variacion.sinRentaFija.diffARS > 0 ? "+" : ""}
+            <ValorSensible>{formatoARS.format(variacion.sinRentaFija.diffARS)}</ValorSensible>
+            {" "}({variacion.sinRentaFija.diffPct != null ? formatoPct.format(variacion.sinRentaFija.diffPct) : "—"})
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
 /**
  * Compara el último Portfolio importado contra el anterior (diaria, según el día
- * elegido en el selector L M M J V) y contra el cierre de la semana anterior,
- * mostrado como "lunes → hoy" (semanal acumulada — ver `calcularEvolucionPatrimonio`
- * para por qué la base es el viernes y no el lunes). El selector arranca en el día de
+ * elegido en el selector L M M J V) y contra el lunes de esa semana (o el último
+ * cierre previo si el lunes no tiene snapshot), mostrado como "lunes → hoy". El selector arranca en el día de
  * hoy (sáb/dom muestran el viernes) y solo deja elegir días violeta (con Portfolio
  * importado ese día y con un snapshot previo contra el cual compararlo); los grises
  * no tienen ese dato todavía.
@@ -168,7 +177,39 @@ export default function EvolucionPatrimonio({ evolucion, evolucionSemana, semana
   };
 
   const diaActivo = dias[indiceDia];
-  const semanal = semana ? semana.semanal : (evolucion.semanal ?? null);
+  const semanalBase = semana ? semana.semanal : (evolucion.semanal ?? null);
+  // Semanal acumulada HASTA el día elegido (no hasta el último de la semana):
+  // misma base (cierre de la semana anterior) pero valuada al día activo.
+  const varDia = diaActivo?.disponible ? diaActivo.variacion : null;
+  let semanal = semanalBase;
+  if (semanalBase?.desdeValorARS != null && varDia?.hastaValorARS != null && diaActivo?.fecha) {
+    const diffARS = varDia.hastaValorARS - semanalBase.desdeValorARS;
+    // Ex-RF por día: viene precalculada con flujos neteados; si falta se estima
+    // directo de los extremos (sin neteo).
+    const baseSinRF = semanalBase.sinRentaFija;
+    const diaSinRF = varDia.sinRentaFija;
+    let sinRentaFija = varDia.sinRentaFijaSemanal ?? baseSinRF ?? null;
+    if (!varDia.sinRentaFijaSemanal && baseSinRF && diaSinRF && diaSinRF.hastaValorARS != null && baseSinRF.desdeValorARS != null) {
+      const dRF = diaSinRF.hastaValorARS - baseSinRF.desdeValorARS;
+      sinRentaFija = {
+        desdeFecha: baseSinRF.desdeFecha,
+        hastaFecha: diaActivo.fecha,
+        desdeValorARS: baseSinRF.desdeValorARS,
+        hastaValorARS: diaSinRF.hastaValorARS,
+        diffARS: dRF,
+        diffPct: semanalBase.desdeValorARS > 0 ? dRF / semanalBase.desdeValorARS : null,
+      };
+    }
+    semanal = {
+      desdeFecha: semanalBase.desdeFecha,
+      hastaFecha: diaActivo.fecha,
+      desdeValorARS: semanalBase.desdeValorARS,
+      hastaValorARS: varDia.hastaValorARS,
+      diffARS,
+      diffPct: semanalBase.desdeValorARS > 0 ? diffARS / semanalBase.desdeValorARS : null,
+      sinRentaFija,
+    };
+  }
 
   return (
     <div className="flex h-full flex-col justify-center gap-1 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>

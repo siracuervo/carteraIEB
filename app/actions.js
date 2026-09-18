@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo } from "@/lib/storage";
+import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo } from "@/lib/storage";
 import { parseArchivoIEB } from "@/lib/parseIEB";
 import { parsePortafolio } from "@/lib/parsePortafolio";
 
@@ -50,6 +50,15 @@ export async function importarPortafolio(prevState, formData) {
         throw new Error("no se reconoce como un export de Portafolio de IEB");
       }
       await agregarAlPortafolioHistorial(portafolio);
+      // Los precios del snapshot también alimentan los cierres diarios: así los
+      // tickers sin API (ej. TMF27) quedan guardados para valuar días pasados.
+      const preciosSnapshot = {};
+      for (const t of portafolio.tenencias || []) {
+        if (t.ticker && t.precio != null) preciosSnapshot[t.ticker] = t.precio;
+      }
+      if (Object.keys(preciosSnapshot).length) {
+        await mergeCierresDiarios({ [portafolio.fecha]: preciosSnapshot });
+      }
       importados++;
       ultimoPatrimonio = portafolio.patrimonioTotal;
     } catch (err) {
@@ -144,6 +153,24 @@ export async function importarOperacionesDelDia(prevState, formData) {
     error: errores.length ? errores.join(" · ") : null,
     exito: { agregadas: agregadasTotal, actualizadas: actualizadasTotal },
   };
+}
+
+/**
+ * Carga manual de un precio de cierre (ticker + fecha + precio) para tickers
+ * sin API (ej. TMF27): queda guardado en los cierres diarios y se usa para
+ * valuar días pasados. Pisar un valor existente lo reemplaza.
+ */
+export async function guardarCierreManual(prevState, formData) {
+  const ticker = String(formData.get("ticker") || "").trim().toUpperCase();
+  const fecha = String(formData.get("fecha") || "");
+  const precio = Number(String(formData.get("precio") || "").replace(",", "."));
+  if (!ticker || !/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(precio) || precio <= 0) {
+    return { error: "Completá ticker, fecha y un precio válido.", exito: null };
+  }
+  await mergeCierresDiarios({ [fecha]: { [ticker]: precio } });
+  revalidatePath("/", "layout");
+  revalidatePath("/movimientos");
+  return { error: null, exito: { ticker, fecha, precio } };
 }
 
 function aNumero(texto) {

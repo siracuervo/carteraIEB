@@ -1,8 +1,9 @@
 import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
-import { importarOperacionesDelDia, importarPortafolio } from "@/app/actions";
+import { importarOperacionesDelDia, importarPortafolio, guardarCierreManual } from "@/app/actions";
 import FormularioImportar from "@/app/components/FormularioImportar";
+import FormularioCierreManual from "@/app/components/FormularioCierreManual";
 import FormularioOperacionManual from "@/app/components/FormularioOperacionManual";
 import FormularioFondos from "@/app/components/FormularioFondos";
 import ListaFondos from "@/app/components/ListaFondos";
@@ -110,6 +111,14 @@ export default async function MovimientosPage() {
         estadoActual={`${ordenadas.length} operaciones`}
       >
         <ListaMovimientos transacciones={ordenadas} />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Cierres manuales"
+        abierta={false}
+        descripcion="Para tickers sin API (ej. TMF27): cargá el precio de cierre de un día y queda guardado para valuar ese día hacia atrás. Los Portfolios que importes ya guardan sus precios solos."
+      >
+        <FormularioCierreManual accion={guardarCierreManual} />
       </SeccionCarga>
 
       <SeccionCarga

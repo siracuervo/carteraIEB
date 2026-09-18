@@ -78,7 +78,7 @@ export default function FormEditarOperacion({ transaccion, onCancelar }) {
             min="0"
             step="any"
             defaultValue={transaccion.importeARS != null ? Math.abs(transaccion.importeARS) : ""}
-            placeholder={transaccion.importeARS == null ? "Sin importe — se estima Precio × Cantidad" : ""}
+            placeholder={transaccion.importeARS == null ? "Sin importe — se estima Precio × Cantidad + derechos" : ""}
             className="rounded border px-2 py-1 text-sm"
             style={estiloInput}
           />
