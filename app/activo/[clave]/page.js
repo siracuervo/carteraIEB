@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { obtenerDatosCartera } from "@/lib/datosCartera";
+import { leerPortafolioHistorial, leerCierresDiarios } from "@/lib/storage";
+import { aISO } from "@/lib/accesosRapidosFecha";
 import { transaccionesDeActivo, factorPrecioPorClase } from "@/lib/calculos";
 import { CLASES } from "@/lib/clasificacion";
 import { fechaLocal } from "@/lib/fechas";
 import Logo from "@/app/components/Logo";
 import ValorSensible from "@/app/components/ValorSensible";
 import GraficoOperaciones from "@/app/components/GraficoOperaciones";
+import GananciaTenencia from "@/app/components/GananciaTenencia";
 import FiltroFechasActivo from "@/app/components/FiltroFechasActivo";
 import IconoCartera from "@/app/components/IconoCartera";
 
@@ -135,7 +138,7 @@ export default async function ActivoPage({ params, searchParams }) {
     return true;
   }
 
-  const datos = await obtenerDatosCartera();
+  const [datos, portafolioHistorial, cierresDiarios] = await Promise.all([obtenerDatosCartera(), leerPortafolioHistorial(), leerCierresDiarios()]);
   if (datos.vacio) notFound();
   const transacciones = datos.transacciones || [];
 
@@ -153,8 +156,42 @@ export default async function ActivoPage({ params, searchParams }) {
   const ventasDeAbierta = !esPosicionCerrada && ventasFiltradas.length ? agregarVentas(clave, ventasFiltradas) : null;
 
   const movimientosBase = transaccionesDeActivo(transacciones, clave);
+  // Compras (+) y ventas (−) del ticker con fecha, para saber si la tenencia
+  // existía en una fecha dada y en qué intervalos se la tuvo.
+  const tradesTicker = movimientosBase
+    .filter((m) => (esCompra(m) || esVenta(m)) && m.fecha && m.cantidad != null)
+    .map((m) => ({ fecha: m.fecha, cantidad: (esVenta(m) ? -1 : 1) * Math.abs(m.cantidad) }))
+    .sort((a, b) => a.fecha.localeCompare(b.fecha));
   const movimientos = hayFiltroFecha ? movimientosBase.filter((m) => dentroDelRango(m.fecha)) : movimientosBase;
   const fechaInicioActivo = movimientosBase[0]?.fecha;
+
+  // Serie del ticker a partir de los Portfolios importados (foto más cercana por
+  // fecha) + cierres diarios captados en vivo para los días sin Portfolio (ej.
+  // el 16/09 tiene cierre pero no snapshot). Se guarda valor, precio y cantidad:
+  // el rendimiento se mide por PRECIO unitario para no contar las compras como
+  // ganancia. Se prefiere el valor ya calculado por IEB (`posicionTotal`).
+  const puntosTicker = tenencia ? (() => {
+    const porFecha = new Map();
+    for (const h of portafolioHistorial) {
+      const t = (h.tenencias || []).find((x) => x.ticker && x.ticker === tenencia.ticker);
+      const valor = t?.posicionTotal
+        ?? (t?.cantidad != null && t?.precio != null ? t.cantidad * t.precio * factorPrecio : null);
+      if (h.fecha && valor != null) porFecha.set(h.fecha, { valor, precio: t?.precio ?? null, cantidad: t?.cantidad ?? null });
+    }
+    const cantidadA = (fecha) => tradesTicker.reduce((acc, m) => acc + (m.fecha <= fecha ? m.cantidad : 0), 0);
+    for (const [fecha, precios] of Object.entries(cierresDiarios || {})) {
+      if (porFecha.has(fecha)) continue;
+      const precio = precios?.[tenencia.ticker];
+      if (precio == null) continue;
+      let cant = cantidadA(fecha);
+      if (!(cant > 0)) cant = tenencia.cantidad; // sin compras registradas: se asume sin cambios
+      if (cant == null || !(cant > 0)) continue;
+      porFecha.set(fecha, { valor: cant * precio * factorPrecio, precio, cantidad: cant });
+    }
+    return Array.from(porFecha.entries())
+      .map(([fecha, punto]) => ({ fecha, ...punto }))
+      .sort((a, b) => a.fecha.localeCompare(b.fecha));
+  })() : [];
   const hayImportesEstimados = movimientos.some((m) => m.importeARS == null && esEstimable(m) && m.precio != null && m.cantidad != null);
 
   const compras = movimientos.filter(esCompra);
@@ -174,7 +211,7 @@ export default async function ActivoPage({ params, searchParams }) {
     });
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <Link href={esPosicionCerrada ? "/cerradas" : "/"} className="text-sm" style={{ color: "var(--text-muted)" }}>
         ← Volver a {esPosicionCerrada ? "ventas realizadas" : "la cartera"}
       </Link>
@@ -193,29 +230,22 @@ export default async function ActivoPage({ params, searchParams }) {
 
       {tenencia ? (
         <>
-          <BloqueTarjetas icono={<IconoCartera />} titulo="Tu posición en cartera" color="var(--marca)">
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Tarjeta etiqueta="Cantidad" valor={<ValorSensible>{tenencia.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
-              <Tarjeta etiqueta="Costo promedio" valor={formatoPrecio(tenencia.costoPromedio, tenencia.divisa, activo.claseActivo)} />
-              <Tarjeta etiqueta="Precio actual" valor={formatoPrecio(tenencia.precioActual, tenencia.divisa, activo.claseActivo)} />
-              <Tarjeta etiqueta="Valor actual" valor={<ValorSensible>{formatoARS.format(tenencia.valorActualARS)}</ValorSensible>} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <Tarjeta
-                etiqueta="% de la cartera"
-                valor={tenencia.pctCartera != null ? formatoPct.format(tenencia.pctCartera).replace(/^\+/, "") : "—"}
-              />
-              <Tarjeta
-                etiqueta="Resultado"
-                valor={tenencia.gananciaNoRealizada != null ? <ValorSensible>{formatoARS.format(tenencia.gananciaNoRealizada)}</ValorSensible> : "—"}
-                color={tenencia.gananciaNoRealizada != null ? (tenencia.gananciaNoRealizada >= 0 ? "var(--good)" : "var(--bad)") : undefined}
-              />
-              <Tarjeta
-                etiqueta="Retorno"
-                valor={tenencia.retornoPct != null ? formatoPct.format(tenencia.retornoPct) : "—"}
-                color={tenencia.retornoPct != null ? (tenencia.retornoPct >= 0 ? "var(--good)" : "var(--bad)") : undefined}
-              />
-            </div>
+          <BloqueTarjetas icono={<IconoCartera />} titulo="Tenencia actual de este activo" color="var(--marca)">
+            <GananciaTenencia
+              key={clave}
+              ticker={tenencia.ticker || tenencia.activo}
+              cantidad={tenencia.cantidad}
+              precioActual={tenencia.precioActual}
+              valorActual={tenencia.valorActualARS}
+              costoPromedio={tenencia.costoPromedio}
+              gananciaNoRealizada={tenencia.gananciaNoRealizada}
+              retornoPct={tenencia.retornoPct}
+              divisa={tenencia.divisa}
+              claseActivo={tenencia.claseActivo}
+              puntos={puntosTicker}
+              fechaActual={aISO(new Date())}
+              movimientos={tradesTicker}
+            />
           </BloqueTarjetas>
 
           {ventasDeAbierta && (

@@ -17,8 +17,8 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots }) {
   const [vista, setVista] = useState("grafico");
 
   return (
-    <div>
-      <div className="mb-2 flex gap-5" style={{ borderBottom: "1px solid var(--border)" }}>
+    <div className="flex h-full flex-col">
+      <div className="mb-1.5 flex shrink-0 gap-3" style={{ borderBottom: "1px solid var(--border)" }}>
         {OPCIONES.map((opcion) => {
           const activa = vista === opcion.id;
           return (
@@ -26,7 +26,7 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots }) {
               key={opcion.id}
               type="button"
               onClick={() => setVista(opcion.id)}
-              className="border-b-2 py-1 text-sm font-medium"
+              className="border-b-2 py-0.5 text-sm font-medium"
               style={{
                 color: activa ? "var(--marca)" : "var(--text-muted)",
                 borderColor: activa ? "var(--marca)" : "transparent",
@@ -37,11 +37,13 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots }) {
           );
         })}
       </div>
-      {vista === "grafico" ? (
-        <GraficoEvolucionPatrimonio serie={serie} />
-      ) : (
-        <MedidorGanancia snapshots={snapshots} />
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {vista === "grafico" ? (
+          <GraficoEvolucionPatrimonio serie={serie} />
+        ) : (
+          <MedidorGanancia snapshots={snapshots} />
+        )}
+      </div>
     </div>
   );
 }

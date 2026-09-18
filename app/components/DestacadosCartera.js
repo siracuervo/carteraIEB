@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Logo from "./Logo";
 import ValorSensible from "./ValorSensible";
 import MiniBarras from "./MiniBarras";
@@ -17,17 +20,17 @@ function formatoMoneda(valor, divisa) {
 function FilaDestacada({ etiqueta, tenencia, valor, colorValor, detalle }) {
   return (
     <div className="border-t pt-3 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
-      <div className="text-xs" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
+      <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{etiqueta}</div>
       {!tenencia ? (
         <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>—</p>
       ) : (
         <div className="mt-1.5 flex items-center gap-2">
           <Logo ticker={tenencia.ticker} nombre={tenencia.activo} size={28} />
-          <div className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          <div className="min-w-0 flex-1 truncate text-base font-medium" style={{ color: "var(--text-primary)" }}>
             {tenencia.activo}
           </div>
           <div className="shrink-0 text-right">
-            <div className="text-lg font-semibold tabular-nums" style={{ color: colorValor || "var(--text-primary)" }}>
+            <div className="text-xl font-semibold tabular-nums" style={{ color: colorValor || "var(--text-primary)" }}>
               {valor}
             </div>
             {detalle && (
@@ -45,9 +48,9 @@ function FilaDestacada({ etiqueta, tenencia, valor, colorValor, detalle }) {
 function TarjetaConteo({ etiqueta, cantidad, pct, color, items }) {
   return (
     <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <div className="text-xs" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
+      <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{etiqueta}</div>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-3xl font-semibold tabular-nums" style={{ color }}>{cantidad}</span>
+        <span className="text-4xl font-semibold tabular-nums" style={{ color }}>{cantidad}</span>
         {pct != null && (
           <span className="text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
             ({formatoPct.format(pct).replace(/^\+/, "")} de las posiciones)
@@ -74,12 +77,12 @@ function EtiquetaMovimiento({ tipo, pctAgregado }) {
   );
 }
 
-function TarjetaNuevasEnCartera({ nuevasEnCartera }) {
+export function NovedadesCartera({ nuevasEnCartera }) {
   const { movimientos, fechaAnterior } = nuevasEnCartera || {};
 
   return (
-    <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <div className="text-xs" style={{ color: "var(--text-muted)" }}>Novedades en la cartera</div>
+    <div className="flex h-full flex-col rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+      <div className="text-sm" style={{ color: "var(--text-primary)" }}>Novedades de la cartera</div>
       {!movimientos?.length ? (
         <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>
           {fechaAnterior
@@ -112,6 +115,7 @@ function TarjetaNuevasEnCartera({ nuevasEnCartera }) {
 }
 
 export default function DestacadosCartera({ tenencias, nuevasEnCartera }) {
+  const [abierto, setAbierto] = useState(false);
   const reales = tenencias.filter((t) => !t.esCash);
   if (!reales.length) return null;
 
@@ -127,7 +131,32 @@ export default function DestacadosCartera({ tenencias, nuevasEnCartera }) {
   const top5Perdedoras = [...perdedoras].sort((a, b) => a.retornoPct - b.retornoPct).slice(0, 5);
 
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+    <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+      <button
+        type="button"
+        onClick={() => setAbierto((a) => !a)}
+        className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left"
+        title={abierto ? "Contraer" : "Expandir"}
+      >
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ transform: abierto ? "rotate(90deg)" : "none", transition: "transform 0.1s" }}
+        >
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+          Datos informativos
+        </span>
+      </button>
+      {abierto && (
+        <div className="grid grid-cols-1 gap-3 p-4 pt-0 sm:grid-cols-2 lg:grid-cols-4">
       <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
         <FilaDestacada
           etiqueta="Mayor posición de la cartera"
@@ -143,7 +172,6 @@ export default function DestacadosCartera({ tenencias, nuevasEnCartera }) {
           detalle={mejorPosicion?.gananciaNoRealizada != null ? formatoARS.format(mejorPosicion.gananciaNoRealizada) : null}
         />
       </div>
-      <TarjetaNuevasEnCartera nuevasEnCartera={nuevasEnCartera} />
       <TarjetaConteo
         etiqueta="Posiciones en ganancia"
         cantidad={ganadoras.length}
@@ -158,6 +186,9 @@ export default function DestacadosCartera({ tenencias, nuevasEnCartera }) {
         color="var(--bad)"
         items={top5Perdedoras}
       />
+      <NovedadesCartera nuevasEnCartera={nuevasEnCartera} />
+        </div>
+      )}
     </div>
   );
 }

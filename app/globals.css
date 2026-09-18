@@ -65,8 +65,24 @@
   }
 }
 
+/*
+ * Tipografía fluida: todo el sitio usa unidades rem, así que mover la raíz escala
+ * proporcionalmente textos y espaciados. Arranca en 16px en celulares y crece
+ * hasta 18px en pantallas grandes para que no se vea chico al 100% de zoom.
+ */
+html {
+  font-size: clamp(16px, 0.5vw + 14px, 18px);
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Separadores verticales entre columnas de la tabla de tenencias. */
+.tabla-tenencias th + th,
+.tabla-tenencias td + td {
+  border-left: 1px solid var(--border);
 }

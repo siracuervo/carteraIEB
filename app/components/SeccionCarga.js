@@ -10,8 +10,8 @@ export default function SeccionCarga({ titulo, descripcion, estadoActual, abiert
         )}
       </summary>
       <div className="border-t px-4 py-4" style={{ borderColor: "var(--border)" }}>
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{descripcion}</p>
-        <div className="mt-4">{children}</div>
+        {descripcion && <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{descripcion}</p>}
+        <div className={descripcion ? "mt-4" : ""}>{children}</div>
       </div>
     </details>
   );

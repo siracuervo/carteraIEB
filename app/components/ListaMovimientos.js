@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { fechaLocal } from "@/lib/fechas";
+import { aISO } from "@/lib/accesosRapidosFecha";
 import { clasificar, CLASES } from "@/lib/clasificacion";
 import { factorPrecioPorClase } from "@/lib/calculos";
 import FormEditarOperacion from "./FormEditarOperacion";
@@ -71,8 +72,10 @@ export default function ListaMovimientos({ transacciones }) {
   const [divisa, setDivisa] = useState("todas");
   const [editandoClave, setEditandoClave] = useState(null);
   // Cuando no hay rango (Desde/Hasta) la lista se acota a un día por vez: así no
-  // crece sin límite hacia abajo. `null` = todavía no eligió, se usa el más reciente.
+  // crece sin límite hacia abajo. Por defecto es HOY (aunque no tenga
+  // movimientos) y se navega hacia atrás con los botones.
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+  const hoyISO = aISO(new Date());
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -90,18 +93,22 @@ export default function ListaMovimientos({ transacciones }) {
   }, [transacciones, busqueda, tipo, desde, hasta, divisa]);
 
   // Días con operaciones (más reciente primero), para la navegación día a día.
+  // Siempre se incluye hoy al principio para arrancar ahí aunque no tenga nada.
   const dias = useMemo(() => {
     const set = new Set();
     for (const t of filtradas) if (t.fecha) set.add(t.fecha);
-    return Array.from(set).sort((a, b) => b.localeCompare(a));
-  }, [filtradas]);
+    const lista = Array.from(set).sort((a, b) => b.localeCompare(a));
+    if (!lista.includes(hoyISO)) lista.unshift(hoyISO);
+    return lista;
+  }, [filtradas, hoyISO]);
 
   const enRango = Boolean(desde || hasta);
   const indiceDia = useMemo(() => {
     if (enRango || !dias.length) return -1;
-    const i = dias.indexOf(diaSeleccionado);
+    const buscado = diaSeleccionado || hoyISO;
+    const i = dias.indexOf(buscado);
     return i >= 0 ? i : 0;
-  }, [dias, diaSeleccionado, enRango]);
+  }, [dias, diaSeleccionado, enRango, hoyISO]);
   const diaEfectivo = indiceDia >= 0 ? dias[indiceDia] : null;
 
   // En modo día se muestra solo ese día (las operaciones sin fecha se dejan visibles);
@@ -310,11 +317,13 @@ export default function ListaMovimientos({ transacciones }) {
             ))}
           </tbody>
         </table>
-        {!visibles.length && (
-          <p className="px-4 py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-            No hay operaciones que coincidan con los filtros.
-          </p>
-        )}
+          {!visibles.length && (
+            <p className="px-4 py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+              {!enRango && !hayFiltro && diaEfectivo
+                ? `Sin movimientos el ${formatoFecha.format(fechaLocal(diaEfectivo))}.`
+                : "No hay operaciones que coincidan con los filtros."}
+            </p>
+          )}
       </div>
     </div>
   );

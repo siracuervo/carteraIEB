@@ -1,8 +1,7 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { CLASES } from "@/lib/clasificacion";
 import { factorPrecioPorClase } from "@/lib/calculos";
 import Logo from "./Logo";
@@ -10,11 +9,7 @@ import ValorSensible from "./ValorSensible";
 import BotonOrden from "./BotonOrden";
 import IconoCartera from "./IconoCartera";
 import EditarPPP from "./EditarPPP";
-import CalendarioDias from "./CalendarioDias";
 import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
-import { fechaLocal } from "@/lib/fechas";
-
-const formatoFechaDia = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "2-digit", month: "long" });
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoARS2 = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
@@ -116,30 +111,18 @@ const GRUPOS_TENENCIAS = [
   },
 ];
 
-export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, esHistorico }) {
-  const [orden, setOrden] = useState({ columna: "valor", direccion: "desc" });
+export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, esHistorico, modo }) {
+  const [orden, setOrden] = useState({ columna: "activo", direccion: "asc" });
   const [live, setLive] = useState(null);
-  const [modo, setModo] = useState("cedear");
   const [anchos, setAnchos] = useState({});
   const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set(["rentaVariable", "rentaFija", "efectivo"]));
   const tablaRef = useRef(null);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   // En vista histórica no hay cotización viva: todo se valúa al cierre del día.
   // (el estado `live` puede traer precios de una visita previa a la vista en vivo;
   // se ignora por completo para no contaminar ni filas ni total con valores vivos)
   const modoEfectivo = esHistorico ? "cedear" : modo;
   const liveVisible = esHistorico ? null : live;
 
-  function cambiarDiaTenencia(nuevoDia) {
-    const params = new URLSearchParams(searchParams);
-    if (nuevoDia) params.set("diaTenencia", nuevoDia);
-    else params.delete("diaTenencia");
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
-  const etiquetaDiaTenencia = diaTenencia ? formatoFechaDia.format(fechaLocal(diaTenencia)) : "";
   const arrastre = useRef(null);
   const refrescarRef = useRef(null);
   const [refrescando, setRefrescando] = useState(false);
@@ -296,11 +279,6 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     });
   }
 
-  function cambiarModo(m) {
-    if (m === modo) return;
-    setModo(m);
-  }
-
   function precioParaOrden(t) {
     const cedear = liveVisible?.cedear?.[t.ticker];
     const usa = liveVisible?.usa?.[t.ticker];
@@ -340,7 +318,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     return precio / costo - 1;
   }
 
-  function renderFila(t) {
+  function renderFila(t, indice = 0) {
     const pctCartera = t.pctCartera ?? null;
     const esRentaFija = t.claseActivo === CLASES.BONO_SOBERANO;
     const banderaArgentina = esRentaFija && t.divisa === "ARS";
@@ -354,8 +332,8 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     const monedaValor = modoEfectivo === "usa" ? "USD" : "ARS";
     return (
       <Fragment key={t.clave}>
-        <tr className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-          <td className="px-2 py-1.5 align-top">
+        <tr className="border-b last:border-0" style={{ borderColor: "var(--border)", background: indice % 2 === 1 ? "var(--gridline)" : "transparent" }}>
+          <td className="px-2 py-1 align-middle">
             {t.esCash ? (
               <div className="flex items-center gap-2">
                 <Logo ticker={t.ticker} nombre={t.activo} />
@@ -365,7 +343,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               <div className="flex items-center gap-2">
                 <Link href={`/activo/${encodeURIComponent(t.clave)}`} className="flex items-center gap-2 hover:underline">
                   <Logo ticker={t.ticker} nombre={t.activo} banderaArgentina={banderaArgentina} />
-                  <div style={{ color: "var(--marca)" }}>{t.ticker || t.activo}</div>
+                  <div className="font-bold" style={{ color: "var(--marca)" }}>{t.ticker || t.activo}</div>
                 </Link>
               </div>
             )}
@@ -376,22 +354,22 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>precio cargado a mano</div>
             )}
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? "—" : <ValorSensible>{t.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>}
           </td>
           <td
-            className="px-2 py-1.5 align-top tabular-nums"
+            className="px-2 py-1 align-middle tabular-nums"
             style={{ color: retornoFila == null ? "var(--text-muted)" : retornoFila >= 0 ? "var(--good)" : "var(--bad)" }}
           >
             {retornoFila == null ? "—" : formatoPct.format(retornoFila)}
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: t.diasTenencia == null ? "var(--text-muted)" : "var(--text-secondary)" }}>
+          <td className="px-2 py-1 align-middle tabular-nums" style={{ color: t.diasTenencia == null ? "var(--text-muted)" : "var(--text-secondary)" }}>
             {t.esCash || t.diasTenencia == null ? "—" : `${Math.round(t.diasTenencia)} ${Math.round(t.diasTenencia) === 1 ? "día" : "días"}`}
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? "—" : formatoPrecio(precioMostrado, monedaMostrada, t.claseActivo)}
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? (
               "—"
             ) : (
@@ -413,10 +391,10 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               </>
             )}
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>
+          <td className="px-2 py-1 align-middle tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>
             <ValorSensible>{formatoMoneda(valorMostrado, monedaValor)}</ValorSensible>
           </td>
-          <td className="px-2 py-1.5 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {pctCartera == null ? "—" : formatoPct.format(pctCartera).replace(/^\+/, "")}
           </td>
         </tr>
@@ -450,68 +428,13 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
 
   return (
     <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      {tickers.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-              Total:
-            </span>
-            <span className="text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-              <ValorSensible>
-                {formatoMoneda(
-                  filas.reduce((acc, t) => acc + (valorDe(t) || 0), 0),
-                  modoEfectivo === "usa" ? "USD" : "ARS"
-                )}
-              </ValorSensible>
-            </span>
-            {esHistorico && etiquetaDiaTenencia && (
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                {etiquetaDiaTenencia.charAt(0).toUpperCase() + etiquetaDiaTenencia.slice(1)}
-              </span>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-            <CalendarioDias dias={diasTenencia} dia={diaTenencia} onElegir={cambiarDiaTenencia} />
-            {esHistorico ? (
-              <button
-                type="button"
-                onClick={() => cambiarDiaTenencia(null)}
-                title="Volver a la posición actual en vivo"
-                className="cursor-pointer rounded-lg border px-2.5 py-1.5 text-xs font-medium"
-                style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
-              >
-                ← En vivo
-              </button>
-            ) : (
-              <div className="flex rounded-lg border p-0.5" style={{ borderColor: "var(--border)" }}>
-                <button
-                  type="button"
-                  onClick={() => cambiarModo("cedear")}
-                  className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                  style={modo === "cedear" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
-                >
-                  PESOS ARGENTINOS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => cambiarModo("usa")}
-                  className="cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                  style={modo === "usa" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
-                >
-                  USA · USD
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       <div className="overflow-x-auto">
         <table
           ref={tablaRef}
           className={
             Object.keys(anchos).length
-              ? "w-full table-fixed text-sm"
-              : "w-full text-sm"
+              ? "tabla-tenencias w-full table-fixed text-sm"
+              : "tabla-tenencias w-full text-sm"
           }
         >
           <thead>
@@ -567,21 +490,21 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
                         title={abierto ? "Contraer" : "Expandir"}
                       >
                         <IconoChevron abierto={abierto} />
-                        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>
+                        <span className="text-sm font-black uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>
                           {g.etiqueta}
                         </span>
                         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                           {g.filas.length} {g.filas.length === 1 ? "tenencia" : "tenencias"}
                         </span>
                         {totalGrupo > 0 && (
-                          <span className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                          <span className="text-xl font-extrabold tabular-nums" style={{ color: "var(--text-secondary)" }}>
                             {formatoMoneda(totalGrupoMostrado, modoEfectivo === "usa" ? "USD" : "ARS")}
                           </span>
                         )}
                       </button>
                     </td>
                   </tr>
-                  {abierto && g.filas.map(renderFila)}
+                  {abierto && g.filas.map((t, i) => renderFila(t, i))}
                 </Fragment>
               );
             })}

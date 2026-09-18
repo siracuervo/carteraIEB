@@ -1,7 +1,7 @@
 import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
-import { importarOperacionesDelDia } from "@/app/actions";
+import { importarOperacionesDelDia, importarPortafolio } from "@/app/actions";
 import FormularioImportar from "@/app/components/FormularioImportar";
 import FormularioOperacionManual from "@/app/components/FormularioOperacionManual";
 import FormularioFondos from "@/app/components/FormularioFondos";
@@ -83,9 +83,10 @@ export default async function MovimientosPage() {
   );
   // Tickers ya operados alguna vez, para el desplegable buscable del formulario manual.
   const tickersOperados = listaActivos.filter((a) => a.ticker).map((a) => ({ ticker: a.ticker, activo: a.activo }));
+  const ultimoPortafolio = portafolioHistorial[portafolioHistorial.length - 1] || null;
 
   return (
-    <main className="mx-auto max-w-4xl space-y-6 px-4 py-8">
+    <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <div>
         <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
           Compras y ventas
@@ -97,6 +98,21 @@ export default async function MovimientosPage() {
       </div>
 
       <SeccionCarga
+        titulo="Agregar operación a mano"
+        abierta={false}
+      >
+        <FormularioOperacionManual activos={tickersOperados} />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Todas las operaciones"
+        abierta={true}
+        estadoActual={`${ordenadas.length} operaciones`}
+      >
+        <ListaMovimientos transacciones={ordenadas} />
+      </SeccionCarga>
+
+      <SeccionCarga
         titulo="Ingresos y retiros de fondos"
         abierta={false}
         estadoActual={movimientosFondos.length ? `${movimientosFondos.length} movimientos` : null}
@@ -106,15 +122,6 @@ export default async function MovimientosPage() {
           <FormularioFondos />
           <ListaFondos fondos={movimientosFondos} />
         </div>
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Todas las operaciones"
-        abierta={true}
-        estadoActual={`${ordenadas.length} operaciones`}
-        descripcion="Los movimientos importados y cargados a mano, con filtros por búsqueda, tipo y divisa. Se muestran día por día (podés pasar de un día a otro) y, si cargás Desde y Hasta, se ve el rango completo."
-      >
-        <ListaMovimientos transacciones={ordenadas} />
       </SeccionCarga>
 
       <SeccionCarga
@@ -130,14 +137,6 @@ export default async function MovimientosPage() {
           ayudaDropzone=".xlsx — podés seleccionar más de uno; se agregan como compras y ventas sin duplicar"
           textoBoton="Importar como compras y ventas"
         />
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Agregar operación a mano"
-        abierta={false}
-        descripcion="Para alguna compra o venta que IEB no tenga en tus exports, o que quieras corregir. Se guarda igual que el resto de los movimientos y aparece en la página del activo."
-      >
-        <FormularioOperacionManual activos={tickersOperados} />
       </SeccionCarga>
 
       <SeccionCarga
@@ -190,6 +189,22 @@ export default async function MovimientosPage() {
           </div>
         </div>
       )}
+
+      <SeccionCarga
+        titulo="Portafolio actual"
+        abierta={portafolioHistorial.length === 0}
+        estadoActual={ultimoPortafolio ? `Último: ${ultimoPortafolio.fecha}` : null}
+        descripcion="En IEB descargá el reporte Portafolio (tenencia actual): trae cantidad, precio, costo promedio y resultado ya calculados por IEB, así que es la fuente más confiable de la pantalla principal. Reimportalo cuando quieras actualizarla."
+      >
+        <FormularioImportar
+          accion={importarPortafolio}
+          tipo="portafolio"
+          id="archivo-portafolio"
+          tituloDropzone="Elegí el reporte de Portafolio"
+          ayudaDropzone=".xlsx — podés seleccionar más de uno si tenés varias fechas guardadas"
+          textoBoton="Importar Portafolio"
+        />
+      </SeccionCarga>
     </main>
   );
 }

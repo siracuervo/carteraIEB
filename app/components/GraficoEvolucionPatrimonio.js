@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from "recharts";
 import { fechaLocal } from "@/lib/fechas";
 import { usePrivacidad } from "./PrivacidadContext";
@@ -8,8 +9,14 @@ const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency:
 const formatoARSCompacto = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0, notation: "compact" });
 const formatoFechaCorta = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
 
-function TooltipPersonalizado({ active, payload }) {
-  if (!active || !payload?.length) return null;
+const RANGOS = [
+  { id: 7, etiqueta: "7D" },
+  { id: 30, etiqueta: "30D" },
+  { id: 90, etiqueta: "90D" },
+  { id: "todo", etiqueta: "Todo" },
+];
+
+function TooltipPersonalizado({ active, payload }) {  if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   if (d.valorTotalARS == null) return null;
   return (
@@ -33,6 +40,16 @@ function TooltipPersonalizado({ active, payload }) {
  */
 export default function GraficoEvolucionPatrimonio({ serie }) {
   const { oculto } = usePrivacidad();
+  const [rango, setRango] = useState("todo");
+
+  const datos = useMemo(() => {
+    if (!serie?.length) return [];
+    if (rango === "todo") {
+      const i = serie.findIndex((d) => d.valorTotalARS != null && d.valorTotalARS > 0);
+      return i === -1 ? serie : serie.slice(i);
+    }
+    return serie.slice(-rango);
+  }, [serie, rango]);
 
   if (oculto) {
     return (
@@ -42,7 +59,7 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
     );
   }
 
-  if (!serie?.length) {
+  if (!datos.length) {
     return (
       <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
         <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera</h3>
@@ -51,14 +68,12 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
     );
   }
 
-  const primeraConDato = serie.find((d) => d.valorTotalARS != null && d.valorTotalARS > 0);
-
   // Eje Y. Por defecto recharts arranca en 0 y si el patrimonio es grande y con poca
   // variación la línea queda pegada arriba sin que se note el movimiento. Se acerca la
   // escala al rango real de valores con un margen del 15% para que la evolución día a
   // día sea la protagonista. Los días en $0 (anteriores al primer import) quedan fuera
   // del eje de propósito: la nota de abajo ya explica que son historial faltante.
-  const valoresReales = serie.map((d) => d.valorTotalARS).filter((v) => v != null && v > 0);
+  const valoresReales = datos.map((d) => d.valorTotalARS).filter((v) => v != null && v > 0);
   let dominioY;
   if (valoresReales.length) {
     const min = Math.min(...valoresReales);
@@ -72,11 +87,28 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
   }
 
   return (
-    <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera (30 días hábiles)</h3>
-      <div className="mt-2" style={{ width: "100%", height: 220 }}>
+    <div className="flex h-full min-h-0 flex-col rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <h3 className="shrink-0 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          Evolución de la cartera ({rango === "todo" ? "todo el historial" : `${rango} días hábiles`})
+        </h3>
+        <div className="flex gap-1">
+          {RANGOS.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => setRango(r.id)}
+              className="cursor-pointer rounded-md px-2 py-0.5 text-xs font-medium transition-colors"
+              style={rango === r.id ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
+            >
+              {r.etiqueta}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="mt-1.5 min-h-[160px] w-full flex-1 lg:min-h-0" style={{ width: "100%" }}>
         <ResponsiveContainer>
-          <AreaChart data={serie} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <AreaChart data={datos} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="rellenoEvolucionCartera" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--marca)" stopOpacity={0.25} />
@@ -115,11 +147,6 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
           </AreaChart>
         </ResponsiveContainer>
       </div>
-      {primeraConDato && primeraConDato.fecha !== serie[0].fecha && (
-        <p className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-          Los días en $0 son anteriores a tu primer Portfolio importado ({formatoFechaCorta.format(fechaLocal(primeraConDato.fecha))}) — si tenés Portfolios viejos guardados, subilos para completar el historial hacia atrás.
-        </p>
-      )}
     </div>
   );
 }

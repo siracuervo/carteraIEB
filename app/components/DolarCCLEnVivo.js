@@ -46,11 +46,12 @@ export default function DolarCCLEnVivo({ referencia }) {
   const enVivo = ccl != null;
 
   return (
-    <div className="text-right">
-      <div className="text-xs" style={{ color: "var(--text-muted)" }}>Dólar CCL</div>
-      <div
-        className="mt-0.5 flex items-center justify-end gap-1.5 text-lg font-semibold tabular-nums"
+    <div className="flex items-center gap-1.5 whitespace-nowrap">
+      <span className="hidden text-xs sm:inline" style={{ color: "var(--text-muted)" }}>Dólar CCL</span>
+      <span
+        className="flex items-center gap-1.5 text-sm font-semibold tabular-nums"
         style={{ color: enVivo ? "var(--text-primary)" : "var(--text-muted)" }}
+        title="Dólar CCL en tiempo real"
       >
         {valor == null ? (
           "—"
@@ -60,11 +61,11 @@ export default function DolarCCLEnVivo({ referencia }) {
             {formatoARS.format(valor)}
           </>
         )}
-      </div>
+      </span>
       {ts && (
-        <div className="mt-0.5 flex items-center justify-end gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
-          en tiempo real · {formatoHora.format(ts)}
-        </div>
+        <span className="hidden text-xs tabular-nums md:inline" style={{ color: "var(--text-muted)" }}>
+          {formatoHora.format(ts)}
+        </span>
       )}
     </div>
   );

@@ -88,21 +88,19 @@ export default function MedidorGanancia({ snapshots }) {
   };
 
   return (
-    <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Ganancia entre periodos</h3>
-
-      <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+    <div className="flex h-full min-h-0 flex-col rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+      <div className="flex items-end gap-2">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Desde
-          <input type="date" value={desde} min={fechaInicio} max={fechaFin} style={estiloInput} className="rounded border px-2 py-1 text-sm" onChange={(e) => fijar(e.target.value, hasta)} />
+          <input type="date" value={desde} min={fechaInicio} max={fechaFin} style={estiloInput} className="w-full min-w-0 rounded border px-2 py-0.5 text-sm" onChange={(e) => fijar(e.target.value, hasta)} />
         </label>
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Hasta
-          <input type="date" value={hasta} min={fechaInicio} max={fechaFin} style={estiloInput} className="rounded border px-2 py-1 text-sm" onChange={(e) => fijar(desde, e.target.value)} />
+          <input type="date" value={hasta} min={fechaInicio} max={fechaFin} style={estiloInput} className="w-full min-w-0 rounded border px-2 py-0.5 text-sm" onChange={(e) => fijar(desde, e.target.value)} />
         </label>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+      <div className="mt-1.5 flex flex-wrap items-center gap-1">
         {ACCESOS_RAPIDOS_FECHA.map(({ etiqueta, calcular }) => {
           const rango = calcular(fechaInicio);
           const activo = desde === rango.desde && hasta === rango.hasta;
@@ -111,7 +109,7 @@ export default function MedidorGanancia({ snapshots }) {
               key={etiqueta}
               type="button"
               onClick={() => fijar(rango.desde, rango.hasta)}
-              className="rounded-full border px-2.5 py-1 text-xs"
+              className="shrink-0 rounded-full border px-2 py-0.5 text-xs"
               style={{
                 borderColor: activo ? "var(--marca)" : "var(--border)",
                 background: activo ? "var(--marca-suave)" : "var(--surface-1)",
@@ -124,30 +122,31 @@ export default function MedidorGanancia({ snapshots }) {
         })}
       </div>
 
+      <div className="flex min-h-0 flex-1 flex-col justify-center">
       {periodoInvalido ? (
-        <p className="mt-4 text-sm" style={{ color: "var(--bad)" }}>
+        <p className="mt-1 text-sm" style={{ color: "var(--bad)" }}>
           La fecha “hasta” es anterior a la de “desde” — el periodo no es válido.
         </p>
       ) : delta != null ? (
-        <div className="mt-4">
-          <div style={{ color }}>
-            <span className="text-3xl font-semibold tabular-nums">
+        <div className="mt-1">
+          <div className="flex items-baseline gap-2" style={{ color }}>
+            <span className="text-xl font-semibold tabular-nums">
               {pct != null ? `${signo}${(pct || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%` : "—"}
             </span>
-          </div>
-          <div className="mt-1 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
-            {delta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(delta))}`}
-            {dias != null && <span style={{ color: "var(--text-muted)" }}> · {dias} días</span>}
+            <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {delta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(delta))}`}
+              {dias != null && <span style={{ color: "var(--text-muted)" }}> · {dias} días</span>}
+            </span>
           </div>
 
-          <div className="mt-4">
-            <div className="relative h-3 w-full rounded-full" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
+          <div className="mt-1">
+            <div className="relative h-2 w-full rounded-full" style={{ background: "var(--surface-2)", border: "1px solid var(--border)" }}>
               <div
                 className="absolute bottom-0 top-0 rounded-full"
                 style={{ left: `${minPct}%`, width: `${Math.max(1, maxPct - minPct)}%`, background: color, opacity: 0.7 }}
               />
             </div>
-            <div className="mt-2 flex flex-wrap justify-between gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            <div className="mt-0.5 flex flex-wrap justify-between gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
               <span>
                 {formatoFecha.format(fechaLocal(puntos[idxDesde].fecha))} · {formatoARS.format(puntos[idxDesde].valorTotalARS)}
               </span>
@@ -156,15 +155,11 @@ export default function MedidorGanancia({ snapshots }) {
               </span>
             </div>
           </div>
-
-          <p className="mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
-            Se usan tus Portfolios importados; para cada fecha se toma la foto más cercana. El del día de hoy, si todavía
-            no importaste el cierre, se estima con la última cotización en vivo.
-          </p>
         </div>
       ) : (
-        <p className="mt-4 text-sm" style={{ color: "var(--text-muted)" }}>Elegí el periodo para ver la ganancia.</p>
+        <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>Elegí el periodo para ver la ganancia.</p>
       )}
+      </div>
     </div>
   );
 }

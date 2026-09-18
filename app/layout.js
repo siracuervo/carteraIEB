@@ -1,5 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import NavTabs from "./components/NavTabs";
+import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
+import BotonActualizarTodo from "./components/BotonActualizarTodo";
 import BotonPrivacidad from "./components/BotonPrivacidad";
 import { ProveedorPrivacidad } from "./components/PrivacidadContext";
 import "./globals.css";
@@ -28,12 +30,16 @@ export default function RootLayout({ children }) {
       <body className="min-h-full flex flex-col">
         <ProveedorPrivacidad>
           <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-            <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+            <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:gap-6 sm:px-6 lg:px-8">
               <span className="text-sm font-bold" style={{ color: "var(--marca)" }}>
                 Cartera IEB
               </span>
               <NavTabs />
-              <BotonPrivacidad />
+              <div className="ml-auto flex items-center gap-2 sm:gap-3">
+                <DolarCCLEnVivo />
+                <BotonActualizarTodo />
+                <BotonPrivacidad />
+              </div>
             </div>
           </header>
           <div className="flex flex-1 flex-col">{children}</div>

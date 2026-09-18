@@ -1,19 +1,13 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { Fragment, useMemo, useState } from "react";
 import Logo from "./Logo";
 import ValorSensible from "./ValorSensible";
-import CalendarioDias from "./CalendarioDias";
-import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 import { fechaLocal } from "@/lib/fechas";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoARS2 = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
-const formatoFechaDia = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "2-digit", month: "long" });
 const formatoFechaCorta = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
-
-const REFRESCO_PRECIOS_MS = 60_000;
 
 function Cantidad({ trade }) {
   const esVenta = trade.tipo === "venta";
@@ -26,8 +20,7 @@ function Cantidad({ trade }) {
   );
 }
 
-export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
-  const [live, setLive] = useState(null);
+export default function ResultadosDelDia({ resultados, diasOperados, dia, live }) {
   // Grupos siempre colapsados por defecto: se recuerdan los expandidos (vacío
   // inicial) y se resetean al cambiar de día.
   const [expandidos, setExpandidos] = useState(() => new Set());
@@ -38,15 +31,6 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
   }
   const trades = useMemo(() => resultados?.trades || [], [resultados]);
   const rendimientos = useMemo(() => resultados?.rendimientosTenencia || [], [resultados]);
-  const totals = resultados?.totals || null;
-  // Variación de la posición que ya se tenía al cierre anterior (precio de ayer →
-  // hoy). Se calcula para TODOS los tickers holdeados, incluidos los que se
-  // operaron ese día (donde va como variación de la "tenencia previa" que quedó).
-  // La renta fija no computa en el mosaico.
-  const totalSinOperar = useMemo(
-    () => rendimientos.reduce((acc, r) => acc + (r.computa === false ? 0 : r.resultado ?? 0), 0),
-    [rendimientos]
-  );
   const rendimientoPorClave = useMemo(() => {
     const mapa = new Map();
     for (const r of rendimientos) {
@@ -56,43 +40,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
     return mapa;
   }, [rendimientos]);
 
-  const tickers = useMemo(
-    () => Array.from(new Set(trades.filter((t) => t.tipo === "compra" && t.ticker).map((t) => t.ticker))),
-    [trades]
-  );
-
   const esUltimo = resultados?.esUltimo ?? false;
-  const refrescarRef = useRef(null);
-
-  useEffect(() => {
-    if (!tickers.length || !esUltimo) return;
-    let activo = true;
-
-    async function refrescar() {
-      try {
-        const res = await fetch(`/api/precios?tickers=${encodeURIComponent(tickers.join(","))}`);
-        const json = await res.json();
-        if (!activo || !json?.cedear) return;
-        setLive(json);
-      } catch {
-        // se mantiene el último valor conocido; se reintenta en el próximo ciclo
-      }
-    }
-    refrescarRef.current = refrescar;
-
-    function alActualizarGlobal() {
-      refrescarRef.current?.();
-    }
-    window.addEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
-
-    refrescar();
-    const id = setInterval(refrescar, REFRESCO_PRECIOS_MS);
-    return () => {
-      activo = false;
-      clearInterval(id);
-      window.removeEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
-    };
-  }, [tickers, esUltimo]);
 
   function precioActualDe(t) {
     if (t.tipo !== "compra") return null;
@@ -147,14 +95,6 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
     if (precioVivo == null || !(t.precio > 0)) return null;
     return precioVivo / t.precio - 1;
   }
-
-  const totalNoRealizado = useMemo(() => {
-    if (totals && totals.noRealizado != null && !esUltimo) return totals.noRealizado;
-    return trades.reduce((acc, t) => acc + (computaPendienteDe(t) ?? 0), 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trades, live, esUltimo]);
-
-  const total = (totals?.realizado ?? 0) + totalNoRealizado + totalSinOperar;
 
   // Orden cronológico primero (fecha, hora; sin hora al cierre del día) y ticker
   // como desempate — tanto entre grupos (por su primera operación) como entre
@@ -216,36 +156,8 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia }) {
     });
   }
 
-  const etiquetaDia = resultados?.dia ? formatoFechaDia.format(fechaLocal(resultados.dia)) : "";
-
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  function cambiarDia(nuevaDia) {
-    const params = new URLSearchParams(searchParams);
-    params.set("dia", nuevaDia);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  }
-
   return (
     <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pt-4">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <h2 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Resultados diarios</h2>
-          <span className="text-lg font-semibold tabular-nums" style={{ color: resColor(total) }}>
-            <ValorSensible>
-              {signo(total)}{formatoARS.format(Math.abs(total ?? 0))}
-            </ValorSensible>
-          </span>
-        </div>
-        <div className="text-xs sm:text-right flex items-center justify-end gap-2" style={{ color: "var(--text-muted)" }}>
-          <CalendarioDias dias={diasOperados} dia={dia} onElegir={cambiarDia} />
-          {etiquetaDia ? etiquetaDia[0].toUpperCase() + etiquetaDia.slice(1) : ""}
-          {!resultados?.esHoy && esUltimo && " · último día con operaciones"}
-        </div>
-      </div>
-
       <div className="overflow-x-auto pt-2">
         <table className="w-full text-sm">
           <tbody>
