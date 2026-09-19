@@ -141,6 +141,8 @@ export function GananciaVariable({ snapshots, transacciones, fondos, desde, hast
 
   let varD = null;
   let varH = null;
+  let varHComparable = null;
+  let flujoRF = 0;
   let varDelta = null;
   let varPct = null;
   let dias = null;
@@ -154,7 +156,11 @@ export function GananciaVariable({ snapshots, transacciones, fondos, desde, hast
       varD = vD - pD.rentaFijaARS - (pD.efectivoParaRF ?? 0);
       varH = pH.valorTotalARS - pH.rentaFijaARS - (pH.efectivoParaRF ?? 0);
       const flujo = ajusteFlujosRentaFija(transacciones, fondos, pD.fecha, pH.fecha);
-      varDelta = (varH - varD) + flujo;
+      flujoRF = flujo || 0;
+      varDelta = (varH - varD) + flujoRF;
+      // Fin comparable: lo que valdría la parte variable si no se hubiera movido
+      // plata a/desde renta fija. Así (comparable − desde) = ganancia mostrada.
+      varHComparable = varH + flujoRF;
       varPct = varD > 0 ? varDelta / varD : null;
       const f1 = fechaLocal(pD.fecha);
       const f2 = fechaLocal(pH.fecha);
@@ -188,8 +194,16 @@ export function GananciaVariable({ snapshots, transacciones, fondos, desde, hast
           <div className="mt-2 flex flex-wrap items-baseline gap-1 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
             <ValorSensible>{formatoARS.format(varD)}</ValorSensible>
             <span aria-hidden="true">→</span>
-            <ValorSensible>{formatoARS.format(varH)}</ValorSensible>
+            <ValorSensible>{formatoARS.format(varHComparable ?? varH)}</ValorSensible>
           </div>
+          {flujoRF !== 0 && (
+            <div className="mt-1 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+              Incluye <ValorSensible>{`${flujoRF > 0 ? "+" : "−"}${formatoARS.format(Math.abs(flujoRF))}`}</ValorSensible> neteados por
+              movimientos a renta fija. Sin netear: <ValorSensible>{formatoARS.format(varD)}</ValorSensible>
+              {" → "}
+              <ValorSensible>{formatoARS.format(varH)}</ValorSensible>.
+            </div>
+          )}
         </div>
       ) : (
         <p className="text-sm" style={{ color: "var(--text-muted)" }}>
