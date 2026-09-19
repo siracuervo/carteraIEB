@@ -9,7 +9,7 @@ const formatoFechaCorta = new Intl.DateTimeFormat("es-AR", { day: "2-digit", mon
 
 const CLASE_TARJETA = "flex flex-col justify-center rounded-lg border p-3";
 
-export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evolucionSemana, semanasEvolucion, serieEvolucion, snapshots }) {
+export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evolucionSemana, semanasEvolucion, serieEvolucion, snapshots, transacciones, fondos }) {
   const {
     valorTotalARS,
     dividendosTotalARS,
@@ -54,7 +54,7 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
           <EvolucionPatrimonio evolucion={evolucion} evolucionSemana={evolucionSemana} semanasEvolucion={semanasEvolucion} />
         </div>
         <div className="col-span-2 min-w-0 lg:col-span-1">
-          <PanelEvolucionPatrimonio serie={serieEvolucion} snapshots={snapshots} />
+          <PanelEvolucionPatrimonio serie={serieEvolucion} snapshots={snapshots} transacciones={transacciones} fondos={fondos} />
         </div>
       </div>
 

@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CLASES } from "@/lib/clasificacion";
-import { factorPrecioPorClase } from "@/lib/calculos";
+import { factorPrecioPorClase, precioVivo } from "@/lib/calculos";
 import Logo from "./Logo";
 import ValorSensible from "./ValorSensible";
 import BotonOrden from "./BotonOrden";
@@ -100,14 +100,14 @@ const GRUPOS_TENENCIAS = [
     esMiembro: (t) => t.claseActivo === CLASES.CEDEAR || t.claseActivo === CLASES.ACCION_LOCAL || t.claseActivo === CLASES.OTRO,
   },
   {
-    id: "rentaFija",
-    etiqueta: "Renta fija",
-    esMiembro: (t) => t.claseActivo === CLASES.BONO_SOBERANO,
-  },
-  {
     id: "efectivo",
     etiqueta: "Efectivo",
     esMiembro: (t) => t.claseActivo === CLASES.EFECTIVO || t.esCash,
+  },
+  {
+    id: "rentaFija",
+    etiqueta: "Renta fija",
+    esMiembro: (t) => t.claseActivo === CLASES.BONO_SOBERANO,
   },
 ];
 
@@ -285,11 +285,13 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     return modoEfectivo === "usa" ? (usa?.precio ?? null) : (precioVivoDe(t) ?? t.precioActual);
   }
 
-  /** Precio vivo a mostrar: bonos al último operado, el resto a la punta vendedora. */
+  /** Precio vivo LOCAL en ARS (bonos a último, resto según rueda). */
   function precioVivoDe(t) {
     const dato = t.ticker && liveVisible?.cedear ? liveVisible.cedear[t.ticker] : null;
-    if (!dato) return null;
-    return t.claseActivo === CLASES.BONO_SOBERANO ? (dato.ultimo ?? dato.precio) : dato.precio;
+    // Ojo con la moneda: el fallback a NYSE/NASDAQ viene en USD y no se puede
+    // usar como ARS (pasó cuando data912 estuvo caído).
+    if (!dato || (dato.moneda && dato.moneda !== "ARS")) return null;
+    return precioVivo(dato, t.claseActivo) ?? null;
   }
 
   /** Valor de una tenencia con el precio en vivo que se muestra: precio × cantidad × factor (÷ dólar en modo USA). */
@@ -329,6 +331,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     const esRentaFija = t.claseActivo === CLASES.BONO_SOBERANO;
     const banderaArgentina = esRentaFija && t.divisa === "ARS";
     const datoCedear = t.ticker && liveVisible?.cedear ? liveVisible.cedear[t.ticker] : null;
+    const enVivo = !esHistorico && (t.precioEnVivo || (datoCedear?.precio != null && (!datoCedear.moneda || datoCedear.moneda === "ARS")));
     const precioMostrado = precioParaOrden(t);
     const monedaMostrada = modoEfectivo === "usa" ? "USD" : (datoCedear?.moneda || t.divisa || "ARS");
     const costoPromedioMostrado = costoParaOrden(t);
@@ -374,6 +377,11 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
           </td>
           <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? "—" : formatoPrecio(precioMostrado, monedaMostrada, t.claseActivo)}
+            {!t.esCash && t.ticker && !enVivo && precioMostrado != null && (
+              <div className="mt-0.5 text-xs font-normal" style={{ color: "var(--text-muted)" }} title="Sin cotización en vivo: se muestra el último precio conocido">
+                desactualizado
+              </div>
+            )}
           </td>
           <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? (

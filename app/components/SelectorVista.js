@@ -7,7 +7,8 @@ import ResultadosDelDia from "./ResultadosDelDia";
 import CalendarioDias from "./CalendarioDias";
 import ValorSensible from "./ValorSensible";
 import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
-import { factorPrecioPorClase } from "@/lib/calculos";
+import { factorPrecioPorClase, precioVivo } from "@/lib/calculos";
+import { clasificar } from "@/lib/clasificacion";
 import { fechaLocal } from "@/lib/fechas";
 import { aISO } from "@/lib/accesosRapidosFecha";
 
@@ -104,8 +105,14 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
 
   function precioActualResDe(t) {
     if (t.tipo !== "compra") return null;
-    const vivo = esUltimoRes ? liveRes?.cedear?.[t.ticker]?.precio : null;
-    return vivo ?? t.precioActual ?? null;
+    // Misma lógica que tenencias: ask en rueda, último operado fuera de ella.
+    const dato = esUltimoRes ? liveRes?.cedear?.[t.ticker] : null;
+    if (dato) {
+      const { claseActivo } = clasificar({ activo: t.activo, ticker: t.ticker, operacion: null });
+      const p = precioVivo(dato, claseActivo);
+      if (p != null) return p;
+    }
+    return t.precioActual ?? null;
   }
 
   function rendimientoPendienteResDe(t) {
@@ -129,7 +136,7 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
     return tradesRes.reduce((acc, t) => acc + (computaPendienteResDe(t) ?? 0), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tradesRes, liveRes, esUltimoRes]);
-  const totalRes = (totalsRes?.realizado ?? 0) + totalNoRealizadoRes + totalSinOperarRes;
+  const totalRes = (totalsRes?.realizado ?? 0) + totalNoRealizadoRes + totalSinOperarRes - (totalsRes?.gastos ?? 0);
 
   const etiquetaDiaRes = resultadosDia?.dia ? formatoFechaDia.format(fechaLocal(resultadosDia.dia)) : "";
 
@@ -202,11 +209,6 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
         )}
         {vista === "resultados" && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-lg font-semibold tabular-nums" style={{ color: resColor(totalRes) }}>
-              <ValorSensible>
-                {signo(totalRes)}{formatoARS.format(Math.abs(totalRes ?? 0))}
-              </ValorSensible>
-            </span>
             <CalendarioDias dias={diasOperados} dia={dia} onElegir={cambiarDia} />
             <span className="text-xs" style={{ color: "var(--text-muted)" }}>
               {etiquetaDiaRes ? etiquetaDiaRes[0].toUpperCase() + etiquetaDiaRes.slice(1) : ""}
@@ -224,7 +226,7 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
           modo={modo}
         />
       ) : (
-        <ResultadosDelDia resultados={resultadosDia} diasOperados={diasOperados} dia={dia} live={liveRes} />
+        <ResultadosDelDia resultados={resultadosDia} diasOperados={diasOperados} dia={dia} live={liveRes} total={totalRes} />
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useState } from "react";
 import { agregarOperacionManual } from "@/app/actions";
 
 const estadoInicial = { error: null, exito: null };
@@ -19,92 +19,13 @@ function hoyISO() {
   return `${d.getFullYear()}-${mes}-${dia}`;
 }
 
-/**
- * Input de ticker con desplegable buscable de los tickers ya operados. Al elegir
- * uno, completa también el nombre del activo (si el campo está vacío o fue el
- * autocompletado anterior), para no tener que tipearlo.
- */
-function SelectorTicker({ opciones, valor, onCambiar, onElegir }) {
-  const [abierto, setAbierto] = useState(false);
-  const [consulta, setConsulta] = useState("");
-  const contenedorRef = useRef(null);
-
-  useEffect(() => {
-    function alClickFuera(evento) {
-      if (contenedorRef.current && !contenedorRef.current.contains(evento.target)) setAbierto(false);
-    }
-    document.addEventListener("mousedown", alClickFuera);
-    return () => document.removeEventListener("mousedown", alClickFuera);
-  }, []);
-
-  const filtradas = useMemo(() => {
-    const q = consulta.trim().toLowerCase();
-    if (!q) return opciones;
-    return opciones.filter((o) => `${o.ticker} ${o.activo || ""}`.toLowerCase().includes(q));
-  }, [opciones, consulta]);
-
-  return (
-    <div ref={contenedorRef} className="relative">
-      <input
-        name="ticker"
-        value={valor}
-        onChange={(e) => {
-          onCambiar(e.target.value);
-          setConsulta(e.target.value);
-          setAbierto(true);
-        }}
-        onFocus={() => {
-          setConsulta("");
-          setAbierto(true);
-        }}
-        autoComplete="off"
-        placeholder="Ej. NVDA — o elegí uno de la lista"
-        className="w-full rounded border px-2 py-1 text-sm"
-        style={estiloInput}
-      />
-      {abierto && filtradas.length > 0 && (
-        <ul
-          className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border py-1 shadow-lg"
-          style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
-        >
-          {filtradas.map((o) => (
-            <li key={o.ticker}>
-              <button
-                type="button"
-                onClick={() => {
-                  onElegir(o);
-                  setAbierto(false);
-                }}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-[var(--surface-2)]"
-                style={{ color: "var(--text-primary)" }}
-              >
-                <span className="font-medium">{o.ticker}</span>
-                {o.activo && (
-                  <span className="truncate text-xs" style={{ color: "var(--text-muted)" }}>{o.activo}</span>
-                )}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 /** Formulario para cargar una operación (compra o venta) a mano, sin depender del export de IEB. */
-export default function FormularioOperacionManual({ activos = [] }) {
+export default function FormularioOperacionManual() {
   const [estado, formAction, pendiente] = useActionState(agregarOperacionManual, estadoInicial);
-  const [ticker, setTicker] = useState("");
   const [activo, setActivo] = useState("");
   // Fecha por defecto: hoy (se recalcula en cada render del servidor, que es
   // dinámico, así que siempre coincide con el día de la request).
   const [fecha, setFecha] = useState(hoyISO);
-
-  function elegirTicker(o) {
-    setTicker(o.ticker);
-    // Solo pisa el nombre si está vacío o si era el autocompletado del ticker anterior.
-    setActivo((actual) => (!actual || actual === ticker ? o.activo : actual));
-  }
 
   return (
     <form action={formAction} className="space-y-4">
@@ -116,14 +37,10 @@ export default function FormularioOperacionManual({ activos = [] }) {
             required
             value={activo}
             onChange={(e) => setActivo(e.target.value)}
-            placeholder="Ej. CEDEAR NVIDIA CORPORATION"
+            placeholder="Ej. MSFT o CEDEAR NVIDIA CORPORATION"
             className="rounded border px-2 py-1 text-sm"
             style={estiloInput}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
-          Ticker (opcional)
-          <SelectorTicker opciones={activos} valor={ticker} onCambiar={setTicker} onElegir={elegirTicker} />
         </label>
         <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Operación *
@@ -226,8 +143,8 @@ export default function FormularioOperacionManual({ activos = [] }) {
       )}
       {estado?.exito && (
         <p className="text-sm" style={{ color: "var(--good)" }}>
-          Listo — {estado.exito.operacion === "compra" ? "compra" : "venta"} de {estado.exito.activo} guardada. Si no
-          cargaste el ticker, se enlaza sola con el activo correspondiente del Portafolio.
+          Listo — {estado.exito.operacion === "compra" ? "compra" : "venta"} de {estado.exito.activo} guardada. Se enlaza
+          sola con el activo correspondiente.
         </p>
       )}
 

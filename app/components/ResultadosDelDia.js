@@ -4,6 +4,8 @@ import { Fragment, useMemo, useState } from "react";
 import Logo from "./Logo";
 import ValorSensible from "./ValorSensible";
 import { fechaLocal } from "@/lib/fechas";
+import { clasificar } from "@/lib/clasificacion";
+import { precioVivo } from "@/lib/calculos";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoARS2 = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
@@ -20,7 +22,7 @@ function Cantidad({ trade }) {
   );
 }
 
-export default function ResultadosDelDia({ resultados, diasOperados, dia, live }) {
+export default function ResultadosDelDia({ resultados, diasOperados, dia, live, total }) {
   // Grupos siempre colapsados por defecto: se recuerdan los expandidos (vacío
   // inicial) y se resetean al cambiar de día.
   const [expandidos, setExpandidos] = useState(() => new Set());
@@ -44,8 +46,15 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live }
 
   function precioActualDe(t) {
     if (t.tipo !== "compra") return null;
-    const vivo = esUltimo ? live?.cedear?.[t.ticker]?.precio : null;
-    return vivo ?? t.precioActual ?? null;
+    // Misma lógica que tenencias: ask en rueda, último operado fuera de ella
+    // (bonos siempre a último). Sin vivo se usa el precio del snapshot (cierre).
+    const dato = esUltimo ? live?.cedear?.[t.ticker] : null;
+    if (dato) {
+      const { claseActivo } = clasificar({ activo: t.activo, ticker: t.ticker, operacion: null });
+      const p = precioVivo(dato, claseActivo);
+      if (p != null) return p;
+    }
+    return t.precioActual ?? null;
   }
 
   function resultadoDe(t) {
@@ -147,6 +156,23 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live }
     [grupos, sinOperarPorClave]
   );
 
+  // Renta fija aparte: no suma al resultado del día, va en su propia tarjeta.
+  const esGrupoRF = ([clave, ts]) => {
+    const sinOperar = sinOperarPorClave.get(clave) ?? null;
+    if (sinOperar) return sinOperar.claseActivo === "Bonos";
+    return ts[0]?.claseActivo === "Bonos";
+  };
+  const gruposResto = gruposTodos.filter((g) => !esGrupoRF(g));
+  const gruposRF = gruposTodos.filter(esGrupoRF);
+  function subtotalGrupo([clave, ts]) {
+    const sinOperar = sinOperarPorClave.get(clave) ?? null;
+    const base = sinOperar ? null : rendimientoBaseDe(clave);
+    return sinOperar
+      ? (sinOperar.resultado ?? 0)
+      : resultadoDeGrupo(ts) + (base && base.computa !== false ? base.resultado ?? 0 : 0);
+  }
+  const subtotalRF = gruposRF.reduce((acc, g) => acc + subtotalGrupo(g), 0);
+
   function alternarGrupo(clave) {
     setExpandidos((actual) => {
       const siguiente = new Set(actual);
@@ -157,11 +183,26 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live }
   }
 
   return (
+    <>
     <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+      <div className="flex flex-wrap items-baseline gap-2 px-4 pt-4">
+        <h2 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Renta variable del día</h2>
+        <span className="text-lg font-semibold tabular-nums" style={{ color: resColor(total) }}>
+          <ValorSensible>
+            {signo(total)}{formatoARS.format(Math.abs(total ?? 0))}
+          </ValorSensible>
+        </span>
+        {(resultados?.totals?.gastos ?? 0) > 0 && (
+          <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+            (gastos del día: −<ValorSensible>{formatoARS.format(resultados.totals.gastos)}</ValorSensible>
+            {" "}sobre <ValorSensible>{formatoARS.format(resultados.totals.montoOperado ?? 0)}</ValorSensible> operados)
+          </span>
+        )}
+      </div>
       <div className="overflow-x-auto pt-2">
         <table className="w-full text-sm">
           <tbody>
-            {gruposTodos.map(([clave, ts]) => {
+            {gruposResto.map(([clave, ts]) => {
               const sinOperar = sinOperarPorClave.get(clave) ?? null;
               const primera = sinOperar ?? ts[0];
               const abierto = expandidos.has(clave);
@@ -384,7 +425,16 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live }
                                   )}
                                 </div>
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums"><Cantidad trade={t} /></td>
+                              <td className="px-3 py-2 align-top tabular-nums">
+                                <Cantidad trade={t} />
+                                {!esVenta && t.cantidadPendiente != null && t.cantidadPendiente > 0 && t.cantidadPendiente < (t.cantidad ?? 0) && (
+                                  <div className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>
+                                    quedan {t.cantidadPendiente.toLocaleString("es-AR", { maximumFractionDigits: 2 })} de{" "}
+                                    {(t.cantidad ?? 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })} (se vendieron{" "}
+                                    {(t.cantidad - t.cantidadPendiente).toLocaleString("es-AR", { maximumFractionDigits: 2 })} en el día)
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 {esVenta ? (
                                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>vendida</span>
@@ -560,11 +610,6 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live }
             No hubo compra/venta {etiquetaDia ? "el " + etiquetaDia : "ese día"}.
           </p>
         )}
-        {Array.from(sinOperarPorClave.values()).some((r) => r.computa === false) && (
-          <p className="px-4 pb-3 text-[11px]" style={{ color: "var(--text-muted)" }}>
-            La renta fija se lista a modo informativo: su variación no se incluye en el Resultado del día.
-          </p>
-        )}
       </div>
 
       {trades.some((t) => t.tipo === "venta" && t.origenes?.length > 0) && (
@@ -577,6 +622,43 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live }
       )}
 
     </div>
+
+      {gruposRF.length > 0 && (
+        <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+          <div className="flex flex-wrap items-baseline gap-2">
+            <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Renta fija del día</h3>
+            <span className="text-lg font-semibold tabular-nums" style={{ color: resColor(subtotalRF) }}>
+              <ValorSensible>
+                {signo(subtotalRF)}{formatoARS.format(Math.abs(subtotalRF))}
+              </ValorSensible>
+            </span>
+          </div>
+          <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            Informativo — no suma al resultado del día de arriba.
+          </p>
+          <ul className="mt-2 space-y-2">
+            {gruposRF.map(([clave, ts]) => {
+              const sinOperar = sinOperarPorClave.get(clave) ?? null;
+              const primera = sinOperar ?? ts[0];
+              const sub = subtotalGrupo([clave, ts]);
+              return (
+                <li key={clave} className="flex items-center gap-2">
+                  <Logo ticker={primera?.ticker ?? null} nombre={primera?.activo || clave} size={24} banderaArgentina />
+                  <div className="min-w-0 flex-1 truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {primera?.ticker || primera?.activo || clave}
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums" style={{ color: resColor(sub) }}>
+                    <ValorSensible>
+                      {signo(sub)}{formatoARS.format(Math.abs(sub))}
+                    </ValorSensible>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </>
   );
 }
 

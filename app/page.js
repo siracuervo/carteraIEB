@@ -5,6 +5,7 @@ import DestacadosCartera from "./components/DestacadosCartera";
 import SelectorVista from "./components/SelectorVista";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export default async function CarteraPage({ searchParams }) {
   const { dia, diaTenencia } = await searchParams;
@@ -23,6 +24,8 @@ export default async function CarteraPage({ searchParams }) {
             semanasEvolucion={datos.semanasEvolucion}
             serieEvolucion={datos.serieEvolucion}
             snapshots={datos.snapshots}
+            transacciones={datos.transacciones}
+            fondos={datos.movimientosFondos}
           />
 
           {datos.fuentePosiciones === "transacciones" && (

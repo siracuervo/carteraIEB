@@ -1,6 +1,7 @@
 import { obtenerPrecios, obtenerPreciosDirecto, obtenerTipoCambioDolares } from "@/lib/precios";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Precios en vivo para refrescar la página principal sin recargar. Recibe

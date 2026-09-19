@@ -14,6 +14,7 @@ import FiltroFechasActivo from "@/app/components/FiltroFechasActivo";
 import IconoCartera from "@/app/components/IconoCartera";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });

@@ -12,6 +12,7 @@ import ListaMovimientos from "@/app/components/ListaMovimientos";
 import SeccionCarga from "@/app/components/SeccionCarga";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function esCompra(t) {
   return (t.operacion || "").toUpperCase().includes("COMPRA");
@@ -82,8 +83,6 @@ export default async function MovimientosPage() {
   const listaActivos = Array.from(activosOperados.values()).sort((a, b) =>
     (a.ticker || a.activo).localeCompare(b.ticker || b.activo)
   );
-  // Tickers ya operados alguna vez, para el desplegable buscable del formulario manual.
-  const tickersOperados = listaActivos.filter((a) => a.ticker).map((a) => ({ ticker: a.ticker, activo: a.activo }));
   const ultimoPortafolio = portafolioHistorial[portafolioHistorial.length - 1] || null;
 
   return (
@@ -102,7 +101,7 @@ export default async function MovimientosPage() {
         titulo="Agregar operación a mano"
         abierta={false}
       >
-        <FormularioOperacionManual activos={tickersOperados} />
+        <FormularioOperacionManual />
       </SeccionCarga>
 
       <SeccionCarga

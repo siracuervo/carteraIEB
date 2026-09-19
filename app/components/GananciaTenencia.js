@@ -51,15 +51,20 @@ function indiceDesde(puntos, iso) {
   return idx === -1 ? 0 : idx;
 }
 
-/** Valor más cercano con fecha >= a la pedida, o el último si no hay ninguno. */
+/** Última foto a la fecha o anterior (igual que desde): en días sin mercado
+    (finde/feriado) vale el cierre previo, nunca una foto futura. Así una misma
+    fecha siempre vale lo mismo esté en "desde" o en "hasta". */
 function indiceHasta(puntos, iso) {
-  const idx = puntos.findIndex((p) => p.fecha >= iso);
-  return idx === -1 ? puntos.length - 1 : idx;
+  let idx = -1;
+  for (let i = 0; i < puntos.length; i++) {
+    if (puntos[i].fecha <= iso) idx = i;
+  }
+  return idx === -1 ? 0 : idx;
 }
 
 /**
  * Tenencia actual del ticker + ganancia entre dos fechas a elección. Usa los
- * Portfolios importados (foto más cercana a cada fecha elegida) y cierra con el
+ * Portfolios importados (última foto a cada fecha o anterior) y cierra con el
  * valor actual en vivo.
  */
 export default function GananciaTenencia({ ticker, cantidad, precioActual, valorActual, costoPromedio, gananciaNoRealizada, retornoPct, divisa, claseActivo, puntos, fechaActual, movimientos }) {
