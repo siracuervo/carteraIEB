@@ -34,7 +34,7 @@ export default function ValorEnDolarOficial({ valorARS }) {
   if (oficial == null) return null;
 
   return (
-    <div className="mt-1 flex items-baseline gap-1.5 tabular-nums">
+    <div className="mt-1 flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 tabular-nums">
       <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
         ≈ <ValorSensible>{formatoUSD.format(valorARS / oficial)}</ValorSensible>
       </span>

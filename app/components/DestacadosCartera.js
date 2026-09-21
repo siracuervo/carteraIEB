@@ -50,7 +50,7 @@ function TarjetaConteo({ etiqueta, cantidad, pct, color, items }) {
     <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       <div className="text-sm" style={{ color: "var(--text-secondary)" }}>{etiqueta}</div>
       <div className="mt-2 flex items-baseline gap-2">
-        <span className="text-4xl font-semibold tabular-nums" style={{ color }}>{cantidad}</span>
+        <span className="text-3xl sm:text-4xl font-semibold tabular-nums" style={{ color }}>{cantidad}</span>
         {pct != null && (
           <span className="text-sm tabular-nums" style={{ color: "var(--text-muted)" }}>
             ({formatoPct.format(pct).replace(/^\+/, "")} de las posiciones)

@@ -66,23 +66,37 @@
 }
 
 /*
- * Tipografía fluida: todo el sitio usa unidades rem, así que mover la raíz escala
- * proporcionalmente textos y espaciados. Arranca en 16px en celulares y crece
- * hasta 18px en pantallas grandes para que no se vea chico al 100% de zoom.
+ * Tipografía: todo el sitio usa unidades rem, así que mover la raíz escala
+ * proporcionalmente textos y espaciados. Base de 19px en todo el rango (en
+ * celulares se lee cómodo sin romper las UI porque todo escala junto).
  */
 html {
-  font-size: clamp(16px, 0.5vw + 14px, 18px);
+  font-size: 19px;
   -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  overflow-x: hidden;
 }
 
 /* Separadores verticales entre columnas de la tabla de tenencias. */
 .tabla-tenencias th + th,
 .tabla-tenencias td + td {
   border-left: 1px solid var(--border);
+}
+
+/* Móvil: los controles de fecha y los selects nunca fuerzan scroll horizontal,
+ * y la página no se puede panear de costado (clip donde hay soporte). */
+@media (max-width: 767px) {
+  input[type="date"],
+  select {
+    max-width: 100%;
+  }
+  body {
+    overflow-x: clip;
+  }
 }

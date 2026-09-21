@@ -97,9 +97,9 @@ export default function SlidersTraspaso({ saldos }) {
         const delta = objetivos[s.id] - actual[s.id];
         return (
           <div key={s.id}>
-            <div className="flex items-baseline justify-between gap-2 text-xs">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 text-xs">
               <span style={{ color: "var(--text-secondary)" }}>{s.etiqueta}</span>
-              <span className="tabular-nums" style={{ color: "var(--text-primary)" }}>
+              <span className="flex min-w-0 flex-wrap items-baseline justify-end gap-x-1 tabular-nums" style={{ color: "var(--text-primary)" }}>
                 <input
                   type="number"
                   min={0}
@@ -109,7 +109,7 @@ export default function SlidersTraspaso({ saldos }) {
                     const v = Number(String(e.target.value).replace(",", "."));
                     setObjetivos((o) => ({ ...o, [s.id]: Number.isFinite(v) && v > 0 ? Math.round(v) : 0 }));
                   }}
-                  className="w-28 rounded border px-2 py-0.5 text-right text-sm tabular-nums"
+                  className="w-24 rounded border px-2 py-0.5 text-right text-sm tabular-nums sm:w-28"
                   style={{ borderColor: "var(--border)", background: "var(--surface-1)", color: "var(--text-primary)" }}
                   aria-label={`Monto objetivo de ${s.etiqueta}`}
                 />

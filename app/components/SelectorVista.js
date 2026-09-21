@@ -145,11 +145,11 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex rounded-lg border p-1" style={{ borderColor: "var(--border)" }}>
+        <div className="flex w-full min-w-0 max-w-full gap-1 overflow-x-auto rounded-lg border p-1 sm:w-auto" style={{ borderColor: "var(--border)" }}>
           <button
             type="button"
             onClick={() => setVista("tenencias")}
-            className="cursor-pointer rounded-md px-5 py-2 text-sm font-semibold transition-colors"
+            className="flex-1 cursor-pointer whitespace-nowrap rounded-md px-2 py-2 text-center text-xs font-semibold transition-colors sm:flex-none sm:px-5 sm:text-sm"
             style={vista === "tenencias" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
           >
             Tenencias
@@ -157,18 +157,18 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
           <button
             type="button"
             onClick={() => setVista("resultados")}
-            className="cursor-pointer rounded-md px-5 py-2 text-sm font-semibold transition-colors"
+            className="flex-1 cursor-pointer whitespace-nowrap rounded-md px-2 py-2 text-center text-xs font-semibold transition-colors sm:flex-none sm:px-5 sm:text-sm"
             style={vista === "resultados" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
           >
-            Resultados diarios
+            <span className="sm:hidden">Resultados</span><span className="hidden sm:inline">Resultados diarios</span>
           </button>
           <button
             type="button"
             onClick={() => setVista("efectivo")}
-            className="cursor-pointer rounded-md px-5 py-2 text-sm font-semibold transition-colors"
+            className="flex-1 cursor-pointer whitespace-nowrap rounded-md px-2 py-2 text-center text-xs font-semibold transition-colors sm:flex-none sm:px-5 sm:text-sm"
             style={vista === "efectivo" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
           >
-            Pesos por estrategia
+            <span className="sm:hidden">Estrategias</span><span className="hidden sm:inline">Pesos por estrategia</span>
           </button>
         </div>
         {vista === "tenencias" && (
@@ -227,7 +227,7 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
           </div>
         )}
       </div>
-      <div className="min-h-[420px]">
+      <div className="min-h-[320px] sm:min-h-[420px]">
       {vista === "tenencias" ? (
         <TablaTenencias
           tenencias={esHistorico ? tenenciasCierre : tenencias}
@@ -239,7 +239,7 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
       ) : vista === "resultados" ? (
         <ResultadosDelDia resultados={resultadosDia} diasOperados={diasOperados} dia={dia} live={liveRes} total={totalRes} />
       ) : (
-        <div className="rounded-lg border p-4 min-h-[420px]" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+        <div className="rounded-lg border p-4 min-h-[320px] sm:min-h-[420px]" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
             Caja separada por estrategia desde el último Portafolio (arranca 100% en trading). Los traspasos cambian
             la proporción sin que entre ni salga plata de la cuenta.

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { fechaLocal } from "@/lib/fechas";
 import { aISO } from "@/lib/accesosRapidosFecha";
 import { clasificar, CLASES } from "@/lib/clasificacion";
@@ -132,6 +132,16 @@ export default function ListaMovimientos({ transacciones }) {
 
   const hayFiltro = Boolean(busqueda || tipo !== "todas" || desde || hasta || divisa !== "todas");
 
+  // El formulario de edición se muestra debajo de la tabla (a ancho completo)
+  // en vez de adentro: adentro quedaría atrapado en el scroll horizontal en móvil.
+  const editando = visibles.find((t) => t.clave === editandoClave) ?? null;
+
+  useEffect(() => {
+    if (editandoClave) {
+      document.getElementById("editar-operacion")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [editandoClave]);
+
   function limpiar() {
     setBusqueda("");
     setTipo("todas");
@@ -139,6 +149,75 @@ export default function ListaMovimientos({ transacciones }) {
     setHasta("");
     setDivisa("todas");
     setDiaSeleccionado(null);
+  }
+
+  /** Tarjeta compacta para móvil: mismos datos que la fila de la tabla. */
+  function renderTarjeta(t, i) {
+    const { texto: importe, estimado } = importeMostrado(t);
+    const venta = esVenta(t);
+    return (
+      <div key={t.clave ?? `${t.activo}-${t.nroOperacion}-${t.fecha}-${i}`} className="border-b px-3 py-2.5 last:border-0" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+              {t.ticker || t.activo || "Sin nombre"}
+            </div>
+            {t.ticker && (
+              <div className="truncate text-xs" style={{ color: "var(--text-muted)" }}>{t.activo}</div>
+            )}
+          </div>
+          <span className="shrink-0 text-xs font-medium" style={{ color: venta ? "var(--bad)" : "var(--good)" }} title={t.operacion}>
+            {operacionCorta(t)}
+          </span>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+          <span>{t.fecha ? `${formatoFecha.format(fechaLocal(t.fecha))}${t.hora ? ` · ${t.hora}` : ""}` : "Sin fecha"}</span>
+          {t.sleeve === "largo" && (
+            <span className="rounded px-1 py-0.5" style={{ background: "var(--marca-suave)", color: "var(--marca)" }} title="Lote de largo plazo">
+              LP
+            </span>
+          )}
+          {t.sleeve === "rentaFija" && (
+            <span className="rounded px-1 py-0.5" style={{ background: "var(--surface-2)", color: "var(--text-muted)" }} title="Renta fija">
+              RF
+            </span>
+          )}
+        </div>
+        <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 text-xs">
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Cantidad</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-primary)" }}>
+              {t.cantidad != null ? t.cantidad.toLocaleString("es-AR") : "—"}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Precio</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-primary)" }}>
+              {formatoPrecio(t.precio, t.divisa || "ARS", clasificar({ activo: t.activo, ticker: t.ticker, operacion: t.operacion }).claseActivo)}
+            </div>
+          </div>
+          <div className="min-w-0 text-right">
+            <div style={{ color: "var(--text-muted)" }}>Importe ARS</div>
+            <div className="truncate tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>
+              {importe}
+              {estimado && (
+                <span className="font-normal" style={{ color: "var(--text-muted)" }}> (est.)</span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setEditandoClave((actual) => (actual === t.clave ? null : t.clave))}
+            className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors"
+            style={{ borderColor: "var(--marca)", color: "var(--marca)", background: "var(--surface-2)" }}
+          >
+            {editandoClave === t.clave ? "Cerrar" : "Editar"}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -207,7 +286,7 @@ export default function ListaMovimientos({ transacciones }) {
           <select
             value={diaEfectivo ?? ""}
             onChange={(e) => setDiaSeleccionado(e.target.value)}
-            className="rounded border px-2 py-1 text-sm"
+            className="min-w-0 max-w-full rounded border px-2 py-1 text-sm"
             style={estiloInput}
           >
             {dias.map((d) => (
@@ -235,8 +314,9 @@ export default function ListaMovimientos({ transacciones }) {
         </p>
       )}
 
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full text-sm">
+      {!!visibles.length && (
+        <div className="mt-3 hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[640px] text-sm">
           <thead>
             <tr className="text-left text-xs" style={{ color: "var(--text-muted)", borderBottom: "1px solid var(--gridline)" }}>
               <th className="px-3 py-2 font-medium">Fecha</th>
@@ -315,28 +395,44 @@ export default function ListaMovimientos({ transacciones }) {
                           </button>
                         </td>
                       </tr>
-                      {editandoClave === t.clave && (
-                        <tr style={{ borderBottom: borde }}>
-                          <td colSpan={7} className="px-4 py-2">
-                            <FormEditarOperacion transaccion={t} onCancelar={() => setEditandoClave(null)} />
-                          </td>
-                        </tr>
-                      )}
                     </Fragment>
                   );
                 })}
               </Fragment>
             ))}
           </tbody>
-        </table>
-          {!visibles.length && (
-            <p className="px-4 py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
-              {!enRango && !hayFiltro && diaEfectivo
-                ? `Sin movimientos el ${formatoFecha.format(fechaLocal(diaEfectivo))}.`
-                : "No hay operaciones que coincidan con los filtros."}
-            </p>
+          </table>
+        </div>
+      )}
+      {!!visibles.length && (
+        <div className="mt-3 md:hidden">
+          {enRango ? (
+            grupos.map(([fecha, items]) => (
+              <div key={fecha || "sin-fecha"}>
+                <div className="px-3 py-1.5 text-xs font-semibold" style={{ color: "var(--text-secondary)", background: "var(--surface-2)" }}>
+                  {fecha ? formatoFecha.format(fechaLocal(fecha)) : "Sin fecha"} · {items.length}{" "}
+                  {items.length === 1 ? "operación" : "operaciones"}
+                </div>
+                <div>{items.map((t, i) => renderTarjeta(t, i))}</div>
+              </div>
+            ))
+          ) : (
+            <div>{visibles.map((t, i) => renderTarjeta(t, i))}</div>
           )}
-      </div>
+        </div>
+      )}
+      {!visibles.length && (
+        <p className="mt-3 px-4 py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+          {!enRango && !hayFiltro && diaEfectivo
+            ? `Sin movimientos el ${formatoFecha.format(fechaLocal(diaEfectivo))}.`
+            : "No hay operaciones que coincidan con los filtros."}
+        </p>
+      )}
+      {editando && (
+        <div id="editar-operacion" className="border-t px-4 py-3" style={{ borderColor: "var(--border)" }}>
+          <FormEditarOperacion transaccion={editando} onCancelar={() => setEditandoClave(null)} />
+        </div>
+      )}
     </div>
   );
 }

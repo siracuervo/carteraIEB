@@ -58,8 +58,8 @@ export default function InputFechaCalendario({ name = "fecha", required, value: 
       </button>
       {abierto && (
         <div
-          className="absolute z-10 mt-1 rounded-lg border bg-white p-2 shadow-lg"
-          style={{ borderColor: "var(--border)", background: "var(--surface-1)", minWidth: 260 }}
+          className="absolute z-10 mt-1 max-h-[320px] overflow-y-auto rounded-lg border bg-white p-2 shadow-lg"
+          style={{ borderColor: "var(--border)", background: "var(--surface-1)", minWidth: 260, maxWidth: "90vw" }}
         >
           <div className="mb-2 flex items-center justify-between">
             <button type="button" onClick={() => setMesVista(new Date(mesVista.getFullYear(), mesVista.getMonth() - 1, 1))} className="rounded px-2 py-1 text-sm hover:bg-black/5" aria-label="Mes anterior">‹</button>

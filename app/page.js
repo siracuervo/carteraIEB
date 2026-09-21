@@ -13,7 +13,7 @@ export default async function CarteraPage({ searchParams }) {
   const tenencias = datos.vacio ? [] : datos.tenencias;
 
   return (
-    <main className="mx-auto max-w-7xl space-y-4 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <main className="mx-auto min-w-0 max-w-7xl space-y-4 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       {tenencias.length ? (
         <>
           <ResumenCartera
@@ -33,6 +33,9 @@ export default async function CarteraPage({ searchParams }) {
             serieEfectivoLargo={datos.serieEfectivoLargo}
             serieRentaFija={datos.serieRentaFija}
             serieEfectivoRentaFija={datos.serieEfectivoRentaFija}
+            serieCostoTrading={datos.serieCostoTrading}
+            serieCostoLargo={datos.serieCostoLargo}
+            serieCostoRentaFija={datos.serieCostoRentaFija}
             fechaCorteSleeves={datos.fechaCorteSleeves}
           />
 

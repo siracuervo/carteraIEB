@@ -28,7 +28,7 @@ const estiloInput = {
  * entre periodos personalizables y el de trading. Las dos últimas pestañas
  * comparten las fechas elegidas.
  */
-export default function PanelEvolucionPatrimonio({ serie, snapshots, transacciones, fondos, traspasos, serieLargo, serieTrading, serieEfectivoTrading, serieEfectivoLargo, serieRentaFija, serieEfectivoRentaFija, fechaCorteSleeves }) {
+export default function PanelEvolucionPatrimonio({ serie, snapshots, transacciones, fondos, traspasos, serieLargo, serieTrading, serieEfectivoTrading, serieEfectivoLargo, serieRentaFija, serieEfectivoRentaFija, serieCostoTrading, serieCostoLargo, serieCostoRentaFija, fechaCorteSleeves }) {
   const [vista, setVista] = useState("grafico");
   const [sleeve, setSleeve] = useState("trading");
   const puntos = (snapshots || []).filter((p) => p.fecha && p.valorTotalARS != null);
@@ -70,8 +70,8 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots, transaccion
   const enPeriodo = vista === "medidor" || vista === "variable";
 
   return (
-    <div className="flex h-[300px] min-h-[300px] flex-col overflow-hidden text-sm">
-      <div className="mb-1.5 flex shrink-0 gap-3" style={{ borderBottom: "1px solid var(--border)" }}>
+    <div className="flex h-[360px] min-h-[320px] flex-col overflow-hidden text-sm sm:h-[300px] sm:min-h-[300px]">
+      <div className="mb-1.5 flex min-w-0 max-w-full shrink-0 gap-2 overflow-x-auto whitespace-nowrap sm:gap-3" style={{ borderBottom: "1px solid var(--border)" }}>
         {OPCIONES.map((opcion) => {
           const activa = vista === opcion.id;
           return (
@@ -79,7 +79,7 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots, transaccion
               key={opcion.id}
               type="button"
               onClick={() => setVista(opcion.id)}
-              className="border-b-2 py-0.5 text-sm font-medium"
+              className="shrink-0 border-b-2 py-0.5 text-xs font-medium sm:text-sm"
               style={{
                 color: activa ? "var(--marca)" : "var(--text-muted)",
                 borderColor: activa ? "var(--marca)" : "transparent",
@@ -158,11 +158,11 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots, transaccion
             </div>
             <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto py-1">
               {sleeve === "trading" ? (
-                <GananciaSleeve sleeve="trading" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieTrading} serieEfectivo={serieEfectivoTrading} serieLargo={serieLargo} fechaCorteSleeves={fechaCorteSleeves} />
+                <GananciaSleeve sleeve="trading" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieTrading} serieEfectivo={serieEfectivoTrading} serieCosto={serieCostoTrading} fechaCorteSleeves={fechaCorteSleeves} />
               ) : sleeve === "largo" ? (
-                <GananciaSleeve sleeve="largo" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieLargo} serieEfectivo={serieEfectivoLargo} fechaCorteSleeves={fechaCorteSleeves} />
+                <GananciaSleeve sleeve="largo" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieLargo} serieEfectivo={serieEfectivoLargo} serieCosto={serieCostoLargo} fechaCorteSleeves={fechaCorteSleeves} />
               ) : (
-                <GananciaSleeve sleeve="rentaFija" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieRentaFija} serieEfectivo={serieEfectivoRentaFija} fechaCorteSleeves={fechaCorteSleeves} />
+                <GananciaSleeve sleeve="rentaFija" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieRentaFija} serieEfectivo={serieEfectivoRentaFija} serieCosto={serieCostoRentaFija} fechaCorteSleeves={fechaCorteSleeves} />
               )}
             </div>
           </div>

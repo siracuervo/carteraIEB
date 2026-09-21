@@ -71,7 +71,7 @@ export default function ListaActivos({ activos }) {
               borderBottom: i < filtrados.length - 1 ? "1px solid var(--gridline)" : "none",
             }}
           >
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium" style={{ color: "var(--text-primary)" }}>
                 {a.ticker || a.activo}
               </div>
@@ -79,7 +79,7 @@ export default function ListaActivos({ activos }) {
                 <div className="truncate text-xs" style={{ color: "var(--text-muted)" }}>{a.activo}</div>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-3 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+            <div className="flex max-w-[55%] shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-0.5 text-xs tabular-nums sm:max-w-none sm:gap-3" style={{ color: "var(--text-muted)" }}>
               <span style={{ color: "var(--good)" }}>{a.compras} compras</span>
               <span style={{ color: "var(--bad)" }}>{a.ventas} ventas</span>
               <span className="font-medium" style={{ color: "var(--text-secondary)" }}>{a.compras + a.ventas} op.</span>

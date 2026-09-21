@@ -255,11 +255,14 @@ export default async function ActivoPage({ params, searchParams }) {
                 <Tarjeta etiqueta="Cantidad vendida" valor={<ValorSensible>{ventasDeAbierta.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
                 <Tarjeta etiqueta="Costo vendido" valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.costoTotal, ventasDeAbierta.divisa)}</ValorSensible>} />
                 <Tarjeta etiqueta="Importe recibido" valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.importeVenta, ventasDeAbierta.divisa)}</ValorSensible>} />
-                <Tarjeta
-                  etiqueta="P&L realizado"
-                  valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.gananciaRealizada, ventasDeAbierta.divisa)}</ValorSensible>}
-                  color={ventasDeAbierta.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)"}
-                />
+                <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>P&L realizado</div>
+                  <div className="mt-1 flex items-baseline gap-2 tabular-nums" style={{ color: ventasDeAbierta.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)" }}>
+                    <span className="text-lg font-semibold"><ValorSensible>{formatoMoneda(ventasDeAbierta.gananciaRealizada, ventasDeAbierta.divisa)}</ValorSensible></span>
+                    {ventasDeAbierta.retornoPct != null && <span className="text-sm font-medium">{formatoPct.format(ventasDeAbierta.retornoPct)}</span>}
+                  </div>
+                  <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Histórico del activo</div>
+                </div>
               </div>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Resultado ya realizado por las ventas parciales de este activo (no incluye comisiones ni gastos) —
@@ -299,11 +302,14 @@ export default async function ActivoPage({ params, searchParams }) {
                 <Tarjeta etiqueta="Cantidad operada" valor={<ValorSensible>{cerrada.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
                 <Tarjeta etiqueta="Costo" valor={<ValorSensible>{formatoMoneda(cerrada.costoTotal, cerrada.divisa)}</ValorSensible>} />
                 <Tarjeta etiqueta="Venta" valor={<ValorSensible>{formatoMoneda(cerrada.importeVenta, cerrada.divisa)}</ValorSensible>} />
-                <Tarjeta
-                  etiqueta="P&L realizado"
-                  valor={<ValorSensible>{formatoMoneda(cerrada.gananciaRealizada, cerrada.divisa)}</ValorSensible>}
-                  color={cerrada.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)"}
-                />
+                <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+                  <div className="text-xs" style={{ color: "var(--text-muted)" }}>P&L realizado</div>
+                  <div className="mt-1 flex items-baseline gap-2 tabular-nums" style={{ color: cerrada.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)" }}>
+                    <span className="text-lg font-semibold"><ValorSensible>{formatoMoneda(cerrada.gananciaRealizada, cerrada.divisa)}</ValorSensible></span>
+                    {cerrada.retornoPct != null && <span className="text-sm font-medium">{formatoPct.format(cerrada.retornoPct)}</span>}
+                  </div>
+                  <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Histórico del activo</div>
+                </div>
               </div>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Costo y P&amp;L calculados por costo promedio ponderado sobre las operaciones importadas — no incluyen

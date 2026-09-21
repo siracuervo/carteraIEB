@@ -45,7 +45,7 @@ export default function FormularioImportar({ accion, tipo, id, tituloDropzone, a
           {ayudaDropzone}
         </div>
         {archivos.length > 0 && (
-          <ul className="mt-3 text-xs" style={{ color: "var(--text-secondary)" }}>
+          <ul className="mt-3 break-words text-xs" style={{ color: "var(--text-secondary)" }}>
             {archivos.map((nombre) => (
               <li key={nombre}>{nombre}</li>
             ))}

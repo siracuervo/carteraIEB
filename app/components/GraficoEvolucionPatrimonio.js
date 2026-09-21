@@ -89,7 +89,7 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
   return (
     <div className="flex h-full min-h-0 flex-col rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <h3 className="shrink-0 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+        <h3 className="min-w-0 flex-1 text-xs font-medium sm:text-sm" style={{ color: "var(--text-primary)" }}>
           Evolución de la cartera ({rango === "todo" ? "todo el historial" : `${rango} días hábiles`})
         </h3>
         <div className="flex gap-1">
@@ -106,7 +106,7 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
           ))}
         </div>
       </div>
-      <div className="mt-1.5 min-h-[160px] w-full flex-1 lg:min-h-0" style={{ width: "100%" }}>
+      <div className="mt-1.5 min-h-[140px] w-full flex-1 sm:min-h-[160px] lg:min-h-0" style={{ width: "100%" }}>
         <ResponsiveContainer>
           <AreaChart data={datos} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>

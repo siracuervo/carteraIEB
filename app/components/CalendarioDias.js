@@ -92,7 +92,7 @@ export default function CalendarioDias({ dias, dia, onElegir }) {
       </button>
       {abierto && (
         <div
-          className="absolute right-0 z-20 mt-1 w-64 rounded-lg border p-3 shadow-lg"
+          className="fixed left-1/2 top-1/2 z-20 w-64 max-w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 rounded-lg border p-3 shadow-lg sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-1 sm:translate-x-0 sm:translate-y-0"
           style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
         >
           <div className="mb-2 flex items-center justify-between">

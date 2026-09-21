@@ -106,8 +106,8 @@ export default function MedidorGanancia({ snapshots, desde, hasta, fondos, trans
         </p>
       ) : delta != null ? (
         <div>
-          <div className="flex items-baseline gap-2" style={{ color }}>
-            <span className="text-xl font-semibold tabular-nums">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5" style={{ color }}>
+            <span className="text-lg sm:text-xl font-semibold tabular-nums">
               {pct != null ? `${signo}${(pct || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%` : "—"}
             </span>
             <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
@@ -322,8 +322,8 @@ export function GananciaTrading({ snapshots, transacciones, fondos, traspasos, d
           <div className="text-xs" style={{ color: "var(--text-secondary)" }}>
             Trading
           </div>
-          <div className="mt-1 flex items-baseline gap-2" style={{ color }}>
-            <span className="text-xl font-semibold tabular-nums">
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5" style={{ color }}>
+            <span className="text-lg sm:text-xl font-semibold tabular-nums">
               {tradingPct != null ? `${signo}${(tradingPct * 100).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%` : "—"}
             </span>
             <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
@@ -388,7 +388,7 @@ export function GananciaTrading({ snapshots, transacciones, fondos, traspasos, d
  * neteando fondos externos y traspasos internos en la ventana — mover plata
  * entre sleeves no cuenta como ganancia en ninguna dirección.
  */
-export function GananciaSleeve({ sleeve, snapshots, transacciones, fondos, traspasos, desde, hasta, serieValor, serieEfectivo, fechaCorteSleeves }) {
+export function GananciaSleeve({ sleeve, snapshots, transacciones, fondos, traspasos, desde, hasta, serieValor, serieEfectivo, serieCosto, fechaCorteSleeves }) {
   const puntos = puntosDe(snapshots);
   if (!puntos.length) {
     return (
@@ -494,8 +494,8 @@ export function GananciaSleeve({ sleeve, snapshots, transacciones, fondos, trasp
       ) : delta != null ? (
         <div>
           <div className="text-xs" style={{ color: "var(--text-secondary)" }}>{etiqueta}</div>
-          <div className="mt-1 flex items-baseline gap-2" style={{ color }}>
-            <span className="text-xl font-semibold tabular-nums">
+          <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5" style={{ color }}>
+            <span className="text-lg sm:text-xl font-semibold tabular-nums">
               {pct != null ? `${signo}${(pct * 100).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%` : "—"}
             </span>
             <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>

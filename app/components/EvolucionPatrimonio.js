@@ -118,17 +118,17 @@ function Fila({ etiqueta, subtitulo, variacion }) {
         </div>
       </div>
       {tieneValores && (
-        <div className="mt-0.5 flex items-baseline justify-between gap-2">
-          <div className="flex items-baseline gap-1 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+        <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-1 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
             <ValorSensible>{formatoARS.format(variacion.desdeValorARS)}</ValorSensible>
             <span aria-hidden="true">→</span>
             <ValorSensible>{formatoARS.format(variacion.hastaValorARS)}</ValorSensible>
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex shrink-0 items-baseline gap-2">
             <span className="text-sm tabular-nums" style={{ color }}>
               <ValorSensible>{formatoARS.format(variacion.diffARS)}</ValorSensible>
             </span>
-            <span className="text-xl font-semibold tabular-nums" style={{ color }}>
+            <span className="text-lg sm:text-xl font-semibold tabular-nums" style={{ color }}>
               {formatoPct.format(variacion.diffPct)}
             </span>
           </div>

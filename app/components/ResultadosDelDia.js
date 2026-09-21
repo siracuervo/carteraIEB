@@ -182,6 +182,331 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
     });
   }
 
+  // Detalle de un grupo calculado una sola vez para desktop (filas) y móvil
+  // (tarjetas): mismos números en ambas vistas. Espeja el criterio del bloque
+  // de escritorio de abajo — si cambia la fórmula, cambiar ambos.
+  function detalleGrupo(ts, clave) {
+    const base = rendimientoBaseDe(clave);
+    const filas = [];
+    const origenes = new Map();
+    ts.forEach((t) => {
+      if (t.tipo !== "venta") return;
+      for (const o of t.origenes || []) {
+        const lote = o.cantidadLote ?? o.cantidad;
+        const key = `${o.fecha}|${o.precio}|${lote}`;
+        const acc = origenes.get(key) || {
+          fecha: o.fecha,
+          precio: o.precio,
+          cantidadLote: lote,
+          cantidad: 0,
+          id: `${t.clave}__origen__${key}`,
+        };
+        acc.cantidad += o.cantidad;
+        origenes.set(key, acc);
+      }
+    });
+    for (const o of origenes.values()) filas.push({ tipo: "origen", fecha: o.fecha, o });
+    ts.forEach((t) => filas.push({ tipo: "trade", fecha: t.fecha, t }));
+    const ordenadas = filas
+      .map((f, idx) => ({ ...f, idx }))
+      .sort((a, b) => {
+        const porFecha = (a.fecha || "").localeCompare(b.fecha || "");
+        if (porFecha !== 0) return porFecha;
+        const horaA = a.t?.hora || "24:00";
+        const horaB = b.t?.hora || "24:00";
+        if (horaA !== horaB) return horaA.localeCompare(horaB);
+        const nroA = Number(a.t?.nroOperacion);
+        const nroB = Number(b.t?.nroOperacion);
+        const ordA = Number.isFinite(nroA) ? nroA : a.idx;
+        const ordB = Number.isFinite(nroB) ? nroB : b.idx;
+        return ordA - ordB;
+      });
+    const abiertas = ts.filter((t) => t.tipo === "compra" && t.cantidadPendiente > 0);
+    const pendiente = (() => {
+      if (!abiertas.length) return null;
+      const primera = abiertas[0];
+      const precioVivoPend = precioActualDe(primera);
+      const factor = primera.factorPrecio ?? 1;
+      const total = abiertas.reduce((acc, t) => acc + t.cantidadPendiente, 0);
+      const conPrecio = abiertas.filter((t) => t.precio != null);
+      const cantidadConPrecio = conPrecio.reduce((acc, t) => acc + t.cantidadPendiente, 0);
+      const precioPromedio =
+        cantidadConPrecio > 0
+          ? conPrecio.reduce((acc, t) => acc + t.precio * t.cantidadPendiente, 0) / cantidadConPrecio
+          : null;
+      const resultado =
+        precioVivoPend != null && precioPromedio != null
+          ? (precioVivoPend - precioPromedio) * total * factor
+          : null;
+      return {
+        cantidad: total,
+        precioBase: precioPromedio,
+        precioActual: precioVivoPend,
+        resultado,
+        rentaFija: esRentaFija(primera),
+      };
+    })();
+    const cierre = (() => {
+      if (!base && !pendiente) return null;
+      const cantidad = (base?.cantidad ?? 0) + (pendiente?.cantidad ?? 0);
+      if (!(cantidad > 0)) return null;
+      const baseMonetaria =
+        (base ? base.precioAyer * base.cantidad : 0) +
+        (pendiente?.precioBase != null ? pendiente.precioBase * pendiente.cantidad : 0);
+      const resultado = (base?.resultado ?? 0) + (pendiente?.resultado ?? 0);
+      return {
+        cantidad,
+        precioBase: baseMonetaria > 0 ? baseMonetaria / cantidad : null,
+        precioActual: pendiente?.precioActual ?? base?.precioActual ?? null,
+        resultado,
+        pct: baseMonetaria > 0 ? resultado / baseMonetaria : null,
+        rentaFija: base?.computa === false || (pendiente?.rentaFija ?? false),
+      };
+    })();
+    return { filas: ordenadas, cierre };
+  }
+
+  function tarjetaOrigen(o) {
+    return (
+      <div key={o.id} className="border-b px-3 py-2 last:border-0" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+          <span
+            className="inline-flex rounded px-1.5 py-0.5 font-medium"
+            style={{ color: "var(--good)", background: "rgba(22, 163, 74, 0.08)" }}
+            title="Compra anterior que dio origen a las unidades vendidas ese día"
+          >
+            Compra
+          </span>
+          <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
+            {formatoFechaCorta.format(fechaLocal(o.fecha))}
+          </span>
+          <span className="tabular-nums" style={{ color: "var(--text-secondary)" }}>
+            {formatoARS2.format(o.precio)}
+          </span>
+          <span className="ml-auto tabular-nums">
+            <Cantidad trade={{ tipo: "compra", cantidad: o.cantidadLote ?? o.cantidad }} />
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  function tarjetaTrade(t) {
+    const precioVivo = precioActualDe(t);
+    const resultado = resultadoDe(t);
+    const porcentaje = porcentajeDe(t);
+    const esVenta = t.tipo === "venta";
+    return (
+      <div key={t.id} className="border-b px-3 py-2.5 last:border-0" style={{ borderColor: "var(--border)" }}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+            style={{
+              color: esVenta ? "var(--bad)" : "var(--good)",
+              background: esVenta ? "rgba(220, 38, 38, 0.08)" : "rgba(22, 163, 74, 0.08)",
+            }}
+          >
+            {t.operacion}
+          </span>
+          <span className="text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
+            {formatoFechaCorta.format(fechaLocal(t.fecha))}{t.hora ? ` · ${t.hora}` : ""}
+          </span>
+          <span className="ml-auto text-xs tabular-nums">
+            <Cantidad trade={t} />
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Precio operado</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {formatoARS2.format(t.precio)}
+            </div>
+            {esVenta && t.origenes?.length > 0 && t.baseResultado != null && (
+              <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                Cierre ant.: {formatoARS2.format(t.baseResultado)}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Precio cierre/actual</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {esVenta ? (
+                "vendida"
+              ) : t.cantidadPendiente <= 0 ? (
+                "—"
+              ) : precioVivo == null ? (
+                "sin precio"
+              ) : (
+                formatoARS2.format(precioVivo)
+              )}
+            </div>
+            {!esVenta && t.cantidadPendiente != null && t.cantidadPendiente > 0 && t.cantidadPendiente < (t.cantidad ?? 0) && (
+              <div style={{ color: "var(--text-muted)" }}>
+                quedan {t.cantidadPendiente.toLocaleString("es-AR", { maximumFractionDigits: 2 })} de{" "}
+                {(t.cantidad ?? 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Resultado del día</div>
+            <div className="truncate tabular-nums font-medium" style={{ color: resColor(resultado) }}>
+              {resultado == null ? (
+                "—"
+              ) : (
+                <ValorSensible>
+                  {signo(resultado)}{formatoARS.format(Math.abs(resultado))}
+                </ValorSensible>
+              )}
+            </div>
+            {esVenta && t.origenes?.length > 0 && t.gananciaRealizada != null && (
+              <div className="truncate tabular-nums" style={{ color: resColor(t.gananciaRealizada) }}>
+                <ValorSensible>
+                  vs compra: {signo(t.gananciaRealizada)}{formatoARS.format(Math.abs(t.gananciaRealizada))}
+                </ValorSensible>
+              </div>
+            )}
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Rend. %</div>
+            <div className="truncate tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
+              {porcentaje == null ? (
+                "—"
+              ) : (
+                <ValorSensible>
+                  {signo(porcentaje)}{(Math.abs(porcentaje) * 100).toFixed(2)}%
+                </ValorSensible>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function tarjetaCierre(cierre, clave) {
+    if (!cierre) return null;
+    return (
+      <div key={`${clave}__cierre`} className="px-3 py-2.5" style={{ background: "var(--surface-2)" }}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+            style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
+            title="Posición que quedó abierta al cierre del día"
+          >
+            Tenencia al cierre
+          </span>
+          {cierre.rentaFija && (
+            <span
+              className="inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium"
+              style={{ color: "var(--text-muted)", border: "1px dashed var(--border)" }}
+              title="Se muestra a modo informativo y no se suma al Resultado del día"
+            >
+              no computa
+            </span>
+          )}
+          <span className="ml-auto text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
+            {resultados?.dia ? formatoFechaCorta.format(fechaLocal(resultados.dia)) : "—"}
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Cantidad</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              <ValorSensible>{cierre.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Precio base</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {cierre.precioBase == null ? "—" : formatoARS2.format(cierre.precioBase)}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Precio actual</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {cierre.precioActual == null ? "sin precio" : formatoARS2.format(cierre.precioActual)}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Resultado</div>
+            <div className="truncate tabular-nums font-medium" style={{ color: resColor(cierre.resultado) }}>
+              <ValorSensible>
+                {signo(cierre.resultado)}{formatoARS.format(Math.abs(cierre.resultado))}
+              </ValorSensible>
+            </div>
+            {cierre.pct != null && (
+              <div className="truncate tabular-nums" style={{ color: resColor(cierre.pct) }}>
+                <ValorSensible>
+                  {signo(cierre.pct)}{(Math.abs(cierre.pct) * 100).toFixed(2)}%
+                </ValorSensible>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function tarjetaSinOperar(r) {
+    return (
+      <div className="px-3 py-2.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+            style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
+          >
+            Sin operar
+          </span>
+          <span className="ml-auto text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
+            {resultados?.dia ? formatoFechaCorta.format(fechaLocal(resultados.dia)) : "—"}
+          </span>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Cierre anterior (D-1)</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {formatoARS2.format(r.precioAyer)}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Cantidad</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              <ValorSensible>{r.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Precio actual</div>
+            <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+              {formatoARS2.format(r.precioActual)}
+            </div>
+          </div>
+          <div className="min-w-0">
+            <div style={{ color: "var(--text-muted)" }}>Resultado</div>
+            <div className="truncate tabular-nums font-medium" style={{ color: resColor(r.resultado) }}>
+              <ValorSensible>
+                {signo(r.resultado)}{formatoARS.format(Math.abs(r.resultado))}
+              </ValorSensible>
+            </div>
+            {r.gananciaNoRealizada != null && (
+              <div className="truncate tabular-nums" style={{ color: resColor(r.gananciaNoRealizada) }}>
+                <ValorSensible>
+                  vs compra: {signo(r.gananciaNoRealizada)}{formatoARS.format(Math.abs(r.gananciaNoRealizada))}
+                </ValorSensible>
+              </div>
+            )}
+            {r.variacionDiariaPct != null && (
+              <div className="truncate tabular-nums font-medium" style={{ color: resColor(r.variacionDiariaPct) }}>
+                <ValorSensible>
+                  {signo(r.variacionDiariaPct)}{(Math.abs(r.variacionDiariaPct) * 100).toFixed(2)}%
+                </ValorSensible>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
     <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
@@ -199,9 +524,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
           </span>
         )}
       </div>
-      <div className="overflow-x-auto pt-2">
-        <table className="w-full text-sm">
-          <tbody>
+      <div className="pt-2">
             {gruposResto.map(([clave, ts]) => {
               const sinOperar = sinOperarPorClave.get(clave) ?? null;
               const primera = sinOperar ?? ts[0];
@@ -214,12 +537,11 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                 : resultadoDeGrupo(ts) + (base && base.computa !== false ? base.resultado ?? 0 : 0);
               return (
                 <Fragment key={clave}>
-                  <tr className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
-                    <td colSpan={7} className="px-3 py-2.5">
+                  <div className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
                       <button
                         type="button"
                         onClick={() => alternarGrupo(clave)}
-                        className="flex w-full cursor-pointer items-center gap-2.5 text-left"
+                        className="flex w-full cursor-pointer flex-wrap items-center gap-x-2.5 gap-y-1 px-3 py-2.5 text-left"
                         title={abierto ? "Contraer" : "Expandir"}
                       >
                         <span style={{ color: "var(--text-secondary)" }}><IconoChevron abierto={abierto} /></span>
@@ -227,7 +549,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                         <span className="text-sm font-bold uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>
                           {primera.ticker || primera.activo}
                         </span>
-                        <span className="text-sm font-bold tabular-nums" style={{ color: resColor(subtotal) }}>
+                        <span className="shrink-0 text-sm font-bold tabular-nums" style={{ color: resColor(subtotal) }}>
                           <ValorSensible>
                             {signo(subtotal)}{formatoARS.format(Math.abs(subtotal))}
                           </ValorSensible>
@@ -243,7 +565,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                           </span>
                         )}
                         {!sinOperar && (
-                          <span className="ml-auto flex items-center gap-3 text-xs tabular-nums">
+                          <span className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] tabular-nums sm:text-xs">
                             {totalComprado > 0 && (
                               <span className="font-medium" style={{ color: "var(--good)" }}>
                                 +{totalComprado.toLocaleString("es-AR", { maximumFractionDigits: 2 })} comprados
@@ -257,11 +579,15 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                           </span>
                         )}
                       </button>
-                    </td>
-                  </tr>
+                  </div>
                   {abierto && sinOperar && (
-                    <tr className="border-b" style={{ borderColor: "var(--border)" }}>
-                      <td className="px-3 py-2 align-top">
+                    <>
+                      <div className="md:hidden">{tarjetaSinOperar(sinOperar)}</div>
+                      <div className="hidden overflow-x-auto md:block">
+                        <table className="w-full min-w-[620px] text-sm">
+                          <tbody>
+                            <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                      <td className="px-2 sm:px-3 py-2 align-top">
                         <span
                           className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
                           style={{ color: "var(--text-secondary)", background: "rgba(100, 116, 139, 0.14)" }}
@@ -269,21 +595,21 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                           Sin operar
                         </span>
                       </td>
-                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                         {resultados?.dia ? formatoFechaCorta.format(fechaLocal(resultados.dia)) : "—"}
                       </td>
-                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                         <span title="Cierre del día anterior (D-1), base del resultado del día">
                           {formatoARS2.format(sinOperar.precioAyer)}
                         </span>
                       </td>
-                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                         <ValorSensible>{sinOperar.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
                       </td>
-                      <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                         {formatoARS2.format(sinOperar.precioActual)}
                       </td>
-                      <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(sinOperar.resultado) }}>
+                      <td className="px-2 sm:px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(sinOperar.resultado) }}>
                         <div className="flex flex-col">
                           <ValorSensible>
                             {signo(sinOperar.resultado)}{formatoARS.format(Math.abs(sinOperar.resultado))}
@@ -300,7 +626,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(sinOperar.variacionDiariaPct) }}>
+                      <td className="px-2 sm:px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(sinOperar.variacionDiariaPct) }}>
                         {sinOperar.variacionDiariaPct == null ? (
                           "—"
                         ) : (
@@ -309,9 +635,17 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                           </ValorSensible>
                         )}
                       </td>
-                    </tr>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                   {abierto && !sinOperar && (
+                    <>
+                      <div className="hidden overflow-x-auto md:block">
+                        <table className="w-full min-w-[620px] text-sm">
+                          <tbody>
                     <tr className="border-b" style={{ borderColor: "var(--border)" }}>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Operación</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Fecha</th>
@@ -321,7 +655,6 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Resultado del día</th>
                       <th className="px-3 py-1 text-left font-medium" style={{ color: "var(--text-muted)" }}>Rend. %</th>
                     </tr>
-                  )}
                   {abierto && !sinOperar && (() => {
                       const filas = [];
                       // Compras anteriores que dieron origen a las ventas del grupo,
@@ -365,8 +698,8 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                           if (f.tipo === "origen") {
                             const o = f.o;
                             return (
-                              <tr key={`${o.id}-${f.idx}`} className="border-b last:border-0" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-                                <td className="px-3 py-2 align-top">
+                              <tr key={`${o.id}-${f.idx}`} className="hidden border-b last:border-0 md:table-row" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+                                <td className="px-2 sm:px-3 py-2 align-top">
                                   <span
                                     className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
                                     style={{ color: "var(--good)", background: "rgba(22, 163, 74, 0.08)" }}
@@ -375,18 +708,18 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                     Compra
                                   </span>
                                 </td>
-                                <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                                <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                   {formatoFechaCorta.format(fechaLocal(o.fecha))}
                                 </td>
-                                <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                                <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                   {formatoARS2.format(o.precio)}
                                 </td>
-                                <td className="px-3 py-2 align-top tabular-nums">
+                                <td className="px-2 sm:px-3 py-2 align-top tabular-nums">
                                   <Cantidad trade={{ tipo: "compra", cantidad: o.cantidadLote ?? o.cantidad }} />
                                 </td>
-                                <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
-                                <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
-                                <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
+                                <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
+                                <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
+                                <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-muted)" }}>—</td>
                               </tr>
                             );
                           }
@@ -396,8 +729,8 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                           const porcentaje = porcentajeDe(t);
                           const esVenta = t.tipo === "venta";
                           return (
-                            <tr key={t.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-                              <td className="px-3 py-2 align-top">
+                            <tr key={t.id} className="hidden border-b last:border-0 md:table-row" style={{ borderColor: "var(--border)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top">
                                 <span
                                   className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
                                   style={{
@@ -408,10 +741,10 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                   {t.operacion}
                                 </span>
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 {formatoFechaCorta.format(fechaLocal(t.fecha))}
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 <div className="flex flex-col">
                                   {formatoARS2.format(t.precio)}
                                   {esVenta && t.origenes?.length > 0 && t.baseResultado != null && (
@@ -425,7 +758,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                   )}
                                 </div>
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums">
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums">
                                 <Cantidad trade={t} />
                                 {!esVenta && t.cantidadPendiente != null && t.cantidadPendiente > 0 && t.cantidadPendiente < (t.cantidad ?? 0) && (
                                   <div className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>
@@ -435,7 +768,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                   </div>
                                 )}
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 {esVenta ? (
                                   <span className="text-xs" style={{ color: "var(--text-muted)" }}>vendida</span>
                                 ) : t.cantidadPendiente <= 0 ? (
@@ -446,7 +779,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                   formatoARS2.format(precioVivo)
                                 )}
                               </td>
-<td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(resultado) }}>
+<td className="px-2 sm:px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(resultado) }}>
                                  {resultado == null ? (
                                    <span style={{ color: "var(--text-muted)" }}>—</span>
                                  ) : (
@@ -468,7 +801,7 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                    </div>
                                  )}
                                </td>
-                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(porcentaje) }}>
                                 {porcentaje == null ? (
                                   <span style={{ color: "var(--text-muted)" }}>—</span>
                                 ) : (
@@ -535,10 +868,10 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                         ? [
                             <tr
                               key={`${clave}__cierre`}
-                              className="border-b last:border-0"
+                              className="hidden border-b last:border-0 md:table-row"
                               style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}
                             >
-                              <td className="px-3 py-2 align-top">
+                              <td className="px-2 sm:px-3 py-2 align-top">
                                 <div className="flex flex-wrap items-center gap-1.5">
                                   <span
                                     className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
@@ -558,10 +891,10 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                   )}
                                 </div>
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 {resultados?.dia ? formatoFechaCorta.format(fechaLocal(resultados.dia)) : "—"}
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 {cierre.precioBase == null ? (
                                   <span style={{ color: "var(--text-muted)" }}>—</span>
                                 ) : (
@@ -570,22 +903,22 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
                                   </span>
                                 )}
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 <ValorSensible>{cierre.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums" style={{ color: "var(--text-secondary)" }}>
                                 {cierre.precioActual == null ? (
                                   <span style={{ color: "var(--bad)" }}>sin precio</span>
                                 ) : (
                                   formatoARS2.format(cierre.precioActual)
                                 )}
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(cierre.resultado) }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(cierre.resultado) }}>
                                 <ValorSensible>
                                   {signo(cierre.resultado)}{formatoARS.format(Math.abs(cierre.resultado))}
                                 </ValorSensible>
                               </td>
-                              <td className="px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(cierre.pct) }}>
+                              <td className="px-2 sm:px-3 py-2 align-top tabular-nums font-medium" style={{ color: resColor(cierre.pct) }}>
                                 {cierre.pct == null ? (
                                   "—"
                                 ) : (
@@ -600,11 +933,25 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
 
                       return [...operaciones, ...filaCierre];
                     })()}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="md:hidden">
+                        {(() => {
+                          const { filas, cierre } = detalleGrupo(ts, clave);
+                          return (
+                            <div>
+                              {filas.map((f) => (f.tipo === "origen" ? tarjetaOrigen(f.o) : tarjetaTrade(f.t)))}
+                              {cierre && tarjetaCierre(cierre, clave)}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </>
+                  )}
                 </Fragment>
               );
             })}
-          </tbody>
-        </table>
         {!trades.length && sinOperarPorClave.size === 0 && (
           <p className="py-6 text-center text-sm" style={{ color: "var(--text-muted)" }}>
             No hubo compra/venta {etiquetaDia ? "el " + etiquetaDia : "ese día"}.

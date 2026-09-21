@@ -69,7 +69,7 @@ function ColumnaConAncho({ columna, ancho, onIniciarArrastre, className, estilo,
         onMouseDown={(e) => onIniciarArrastre(columna, e)}
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
-        className="absolute top-0 right-0 h-full cursor-col-resize"
+        className="absolute top-0 right-0 hidden h-full cursor-col-resize sm:block"
         style={{
           width: hover ? 7 : 3,
           background: hover ? "var(--marca)" : "var(--border)",
@@ -227,6 +227,8 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
       if (cancelado) return;
       const tabla = tablaRef.current;
       if (!tabla) return;
+      // En móvil la tabla está oculta (se muestran tarjetas): no hay nada que medir.
+      if (tabla.offsetParent === null) return;
       // Anchura que necesita cada columna para que el nombre de la columna entre en
       // una sola línea (scrollWidth = ancho del contenido sin saltos de línea) y para
       // que entre el contenido más ancho de sus celdas.
@@ -335,7 +337,9 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     return precio / costo - 1;
   }
 
-  function renderFila(t, indice = 0) {
+  /** Valores ya resueltos para mostrar (precio/valor vivos incluidos). Lo usan
+   *  tanto la tabla (desktop) como las tarjetas (móvil) para no divergir. */
+  function datosFila(t) {
     const pctCartera = t.pctCartera ?? null;
     const esRentaFija = t.claseActivo === CLASES.BONO_SOBERANO;
     const banderaArgentina = esRentaFija && t.divisa === "ARS";
@@ -348,6 +352,11 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     const monedaCosto = modoEfectivo === "usa" ? "USD" : t.divisa;
     const valorMostrado = valorDe(t);
     const monedaValor = modoEfectivo === "usa" ? "USD" : "ARS";
+    return { pctCartera, banderaArgentina, enVivo, precioMostrado, monedaMostrada, costoPromedioMostrado, retornoFila, monedaCosto, valorMostrado, monedaValor };
+  }
+
+  function renderFila(t, indice = 0) {
+    const { pctCartera, banderaArgentina, enVivo, precioMostrado, monedaMostrada, costoPromedioMostrado, retornoFila, monedaCosto, valorMostrado, monedaValor } = datosFila(t);
     return (
       <Fragment key={t.claveFila || t.clave}>
         <tr className="border-b last:border-0" style={{ borderColor: "var(--border)", background: indice % 2 === 1 ? "var(--gridline)" : "transparent" }}>
@@ -425,6 +434,98 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     );
   }
 
+  /** Tarjeta compacta para móvil: mismos números que la fila de la tabla,
+   *  pero apilados (encabezado + grilla de 2 columnas) en vez de 8 columnas. */
+  function renderTarjeta(t) {
+    const d = datosFila(t);
+    return (
+      <div key={t.claveFila || t.clave} className="border-b px-3 py-2.5 last:border-0" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center gap-2">
+          {t.esCash ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <Logo ticker={t.ticker} nombre={t.activo} />
+              <div className="truncate text-sm" style={{ color: "var(--text-primary)" }}>{t.activo}</div>
+            </div>
+          ) : (
+            <Link href={`/activo/${encodeURIComponent(t.clave)}`} className="flex min-w-0 flex-1 items-center gap-2">
+              <Logo ticker={t.ticker} nombre={t.activo} banderaArgentina={d.banderaArgentina} />
+              <div className="truncate text-sm font-bold" style={{ color: "var(--marca)" }}>{t.ticker || t.activo}</div>
+            </Link>
+          )}
+          <div className="ml-auto shrink-0 text-right">
+            <div className="text-base font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+              <ValorSensible>{formatoMoneda(d.valorMostrado, d.monedaValor)}</ValorSensible>
+            </div>
+            <div className="text-[11px] tabular-nums" style={{ color: "var(--text-muted)" }}>
+              {d.pctCartera == null ? "—" : formatoPct.format(d.pctCartera).replace(/^\+/, "")} de la cartera
+            </div>
+          </div>
+        </div>
+        {!t.esCash && (
+          <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+            <div className="min-w-0">
+              <div style={{ color: "var(--text-muted)" }}>Cantidad</div>
+              <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                <ValorSensible>{t.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div style={{ color: "var(--text-muted)" }}>Retorno</div>
+              <div className="truncate tabular-nums" style={{ color: d.retornoFila == null ? "var(--text-muted)" : d.retornoFila >= 0 ? "var(--good)" : "var(--bad)" }}>
+                {d.retornoFila == null ? "—" : formatoPct.format(d.retornoFila)}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div style={{ color: "var(--text-muted)" }}>Precio actual ({d.monedaMostrada})</div>
+              <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                <ValorSensible>{formatoPrecio(d.precioMostrado, d.monedaMostrada, t.claseActivo)}</ValorSensible>
+                {t.ticker && !d.enVivo && d.precioMostrado != null && (
+                  <span className="ml-1" style={{ color: "var(--text-muted)" }} title="Sin cotización en vivo: se muestra el último precio conocido">
+                    · desact.
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div style={{ color: "var(--text-muted)" }}>Costo prom. ({d.monedaCosto})</div>
+              <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                <ValorSensible>{formatoPrecio(d.costoPromedioMostrado, d.monedaCosto, t.claseActivo)}</ValorSensible>
+              </div>
+            </div>
+            <div className="min-w-0">
+              <div style={{ color: "var(--text-muted)" }}>Días de tenencia</div>
+              <div className="truncate tabular-nums" style={{ color: t.diasTenencia == null ? "var(--text-muted)" : "var(--text-secondary)" }}>
+                {t.diasTenencia == null ? "—" : `${Math.round(t.diasTenencia)} ${Math.round(t.diasTenencia) === 1 ? "día" : "días"}`}
+              </div>
+            </div>
+            {t.cclCompra != null && (
+              <div className="min-w-0">
+                <div style={{ color: "var(--text-muted)" }}>CCL compra</div>
+                <div className="tabular-nums italic" style={{ color: "var(--text-muted)" }}>
+                  {formatoARS2.format(t.cclCompra)}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {t.sinPrecio && (
+          <div className="mt-1 text-xs" style={{ color: "var(--bad)" }}>sin precio de mercado</div>
+        )}
+        {t.usaPrecioManual && (
+          <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>precio cargado a mano</div>
+        )}
+        {t.pppPendienteIEB && !esHistorico && !t.esCash && (
+          <div className="mt-1">
+            {t.costoManual && (
+              <div className="text-xs font-normal" style={{ color: "var(--text-muted)" }}>cargado a mano</div>
+            )}
+            <EditarPPP clave={t.clave} divisa={t.divisa} valorActual={t.costoPromedio} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const filas = useMemo(() => {
     const { campo } = COLUMNAS_ORDENABLES[orden.columna];
     const signo = orden.direccion === "asc" ? 1 : -1;
@@ -451,7 +552,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
 
   return (
     <div className="rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <div className="overflow-x-auto">
+      <div className="hidden overflow-x-auto md:block">
         <table
           ref={tablaRef}
           className={
@@ -520,7 +621,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
                           {g.filas.length} {g.filas.length === 1 ? "tenencia" : "tenencias"}
                         </span>
                         {totalGrupo > 0 && (
-                          <span className="text-xl font-extrabold tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                          <span className="text-base sm:text-xl font-extrabold tabular-nums" style={{ color: "var(--text-secondary)" }}>
                             <ValorSensible>{formatoMoneda(totalGrupoMostrado, modoEfectivo === "usa" ? "USD" : "ARS")}</ValorSensible>
                           </span>
                         )}
@@ -533,6 +634,37 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
             })}
           </tbody>
         </table>
+      </div>
+      <div className="md:hidden">
+        {grupos.map((g) => {
+          const abierto = gruposAbiertos.has(g.id);
+          const totalGrupo = g.filas.reduce((acc, t) => acc + (valorDe(t) || 0), 0);
+          return (
+            <div key={g.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+              <button
+                type="button"
+                onClick={() => alternarGrupo(g.id)}
+                className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2.5 text-left"
+                style={{ background: "var(--surface-2)" }}
+                title={abierto ? "Contraer" : "Expandir"}
+              >
+                <IconoChevron abierto={abierto} />
+                <span className="text-xs font-black uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>
+                  {g.etiqueta}
+                </span>
+                <span className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+                  {g.filas.length} {g.filas.length === 1 ? "tenencia" : "tenencias"}
+                </span>
+                {totalGrupo > 0 && (
+                  <span className="ml-auto text-base font-extrabold tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                    <ValorSensible>{formatoMoneda(totalGrupo, modoEfectivo === "usa" ? "USD" : "ARS")}</ValorSensible>
+                  </span>
+                )}
+              </button>
+              {abierto && <div>{g.filas.map((t) => renderTarjeta(t))}</div>}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

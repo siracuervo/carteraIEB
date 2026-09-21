@@ -16,14 +16,14 @@ export default function NavTabs() {
   const pathname = usePathname();
 
   return (
-    <nav className="flex gap-5">
+    <nav className="flex min-w-0 max-w-full gap-2 overflow-x-auto whitespace-nowrap sm:gap-5">
       {TABS.map((tab) => {
         const activa = pathname === tab.href;
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            className="border-b-2 py-1 text-sm font-medium"
+            className="shrink-0 border-b-2 py-1 text-sm font-medium"
             style={{
               color: activa ? "var(--marca)" : "var(--text-muted)",
               borderColor: activa ? "var(--marca)" : "transparent",

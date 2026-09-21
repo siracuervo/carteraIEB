@@ -157,7 +157,7 @@ export default function GraficoOperaciones({ movimientos, factorPrecio, divisa }
           <Scatter data={datos} shape={VelaOperacion} />
         </ScatterChart>
       </ResponsiveContainer>
-      <div className="mt-1 flex items-center justify-center gap-4 text-xs" style={{ color: "var(--text-muted)" }}>
+      <div className="mt-1 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-center text-xs" style={{ color: "var(--text-muted)" }}>
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--good)" }} />
           Compra
