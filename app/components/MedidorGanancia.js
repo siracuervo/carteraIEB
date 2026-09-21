@@ -111,7 +111,7 @@ export default function MedidorGanancia({ snapshots, desde, hasta, fondos, trans
               {pct != null ? `${signo}${(pct || 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%` : "—"}
             </span>
             <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
-              {delta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(delta))}`}
+              <ValorSensible>{delta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(delta))}`}</ValorSensible>
               {dias != null && <span style={{ color: "var(--text-muted)" }}> · {dias} días</span>}
             </span>
           </div>
@@ -125,10 +125,10 @@ export default function MedidorGanancia({ snapshots, desde, hasta, fondos, trans
             </div>
             <div className="mt-1 flex flex-wrap justify-between gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
               <span>
-                {formatoFecha.format(fechaLocal(puntos[idxDesde].fecha))} · {formatoARS.format(puntos[idxDesde].valorTotalARS)}
+                <ValorSensible>{formatoFecha.format(fechaLocal(puntos[idxDesde].fecha))} · {formatoARS.format(puntos[idxDesde].valorTotalARS)}</ValorSensible>
               </span>
               <span>
-                {formatoFecha.format(fechaLocal(puntos[idxHasta].fecha))} · {formatoARS.format(puntos[idxHasta].valorTotalARS)}
+                <ValorSensible>{formatoFecha.format(fechaLocal(puntos[idxHasta].fecha))} · {formatoARS.format(puntos[idxHasta].valorTotalARS)}</ValorSensible>
               </span>
             </div>
             {flujoFondos !== 0 && (
@@ -327,7 +327,7 @@ export function GananciaTrading({ snapshots, transacciones, fondos, traspasos, d
               {tradingPct != null ? `${signo}${(tradingPct * 100).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%` : "—"}
             </span>
             <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
-              {tradingDelta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(tradingDelta))}`}
+              <ValorSensible>{tradingDelta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(tradingDelta))}`}</ValorSensible>
               {dias != null && <span style={{ color: "var(--text-muted)" }}> · {dias} días</span>}
             </span>
           </div>
@@ -499,7 +499,7 @@ export function GananciaSleeve({ sleeve, snapshots, transacciones, fondos, trasp
               {pct != null ? `${signo}${(pct * 100).toLocaleString("es-AR", { maximumFractionDigits: 2 })}%` : "—"}
             </span>
             <span className="text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
-              {delta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(delta))}`}
+              <ValorSensible>{delta === 0 ? "Sin variación" : `${signo}${formatoARS.format(Math.abs(delta))}`}</ValorSensible>
               {dias != null && <span style={{ color: "var(--text-muted)" }}> · {dias} días</span>}
             </span>
           </div>

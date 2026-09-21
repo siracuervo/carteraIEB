@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { agregarMovimientoFondo } from "@/app/actions";
+import InputFechaCalendario from "./InputFechaCalendario";
 
 const estadoInicial = { error: null, exito: null };
 
@@ -16,6 +17,10 @@ const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency:
 /** Carga un ingreso o retiro de dinero (por fuera del mercado): entra a caja de inmediato. */
 export default function FormularioFondos() {
   const [estado, formAction, pendiente] = useActionState(agregarMovimientoFondo, estadoInicial);
+  const [fecha, setFecha] = useState("");
+  useEffect(() => {
+    if (estado?.exito) setFecha("");
+  }, [estado?.exito]);
 
   return (
     <form action={formAction} className="space-y-3">
@@ -29,7 +34,7 @@ export default function FormularioFondos() {
         </label>
         <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Fecha *
-          <input type="date" name="fecha" required className="rounded border px-2 py-1 text-sm" style={estiloInput} />
+          <InputFechaCalendario name="fecha" required value={fecha} onChange={setFecha} />
         </label>
         <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Monto ARS *

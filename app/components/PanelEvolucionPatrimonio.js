@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import GraficoEvolucionPatrimonio from "./GraficoEvolucionPatrimonio";
 import MedidorGanancia, { GananciaSleeve } from "./MedidorGanancia";
 import { ACCESOS_RAPIDOS_FECHA } from "@/lib/accesosRapidosFecha";
@@ -34,8 +34,32 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots, transaccion
   const puntos = (snapshots || []).filter((p) => p.fecha && p.valorTotalARS != null);
   const fechaInicio = puntos[0]?.fecha || "";
   const fechaFin = puntos[puntos.length - 1]?.fecha || "";
-  const [desde, setDesde] = useState(fechaInicio);
-  const [hasta, setHasta] = useState(fechaFin);
+  const getRangoEstaSemana = () => {
+    if (!puntos.length) return { desde: fechaInicio, hasta: fechaFin };
+    const r = ACCESOS_RAPIDOS_FECHA.find((x) => x.etiqueta === "Esta semana")?.calcular(fechaInicio);
+    if (!r) return { desde: fechaInicio, hasta: fechaFin };
+    const clamp = (iso) => (iso < fechaInicio ? fechaInicio : iso > fechaFin ? fechaFin : iso);
+    return { desde: clamp(r.desde), hasta: clamp(r.hasta) };
+  };
+  const rangoInicial = getRangoEstaSemana();
+  const [desde, setDesde] = useState(rangoInicial.desde);
+  const [hasta, setHasta] = useState(rangoInicial.hasta);
+
+  useEffect(() => {
+    if (!puntos.length) return;
+    const actualEsDefault = desde === "" && hasta === "";
+    const esRangoInicial = desde === fechaInicio && hasta === fechaFin;
+    if (actualEsDefault || esRangoInicial) {
+      const r = getRangoEstaSemana();
+      const c = (iso) => (iso < fechaInicio ? fechaInicio : iso > fechaFin ? fechaFin : iso);
+      const nd = c(r.desde);
+      const nh = c(r.hasta);
+      if (nd !== desde || nh !== hasta) {
+        setDesde(nd);
+        setHasta(nh);
+      }
+    }
+  }, [fechaInicio, fechaFin]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function fijar(nuevoDesde, nuevoHasta) {
     const c = (iso) => (iso < fechaInicio ? fechaInicio : iso > fechaFin ? fechaFin : iso);

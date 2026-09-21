@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo, agregarTraspasoEfectivo as guardarTraspaso, eliminarTraspasoEfectivo } from "@/lib/storage";
+import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo, actualizarMovimientoFondo, agregarTraspasoEfectivo as guardarTraspaso, eliminarTraspasoEfectivo } from "@/lib/storage";
 import { clasificar, CLASES } from "@/lib/clasificacion";
 import { parseArchivoIEB } from "@/lib/parseIEB";
 import { parsePortafolio } from "@/lib/parsePortafolio";
@@ -406,6 +406,26 @@ export async function quitarMovimientoFondo(id) {
   revalidatePath("/movimientos");
   revalidatePath("/", "layout");
   return { error: null, exito: { eliminado: true } };
+}
+
+export async function editarMovimientoFondo(prevState, formData) {
+  const id = String(formData.get("id") || "").trim();
+  const fecha = String(formData.get("fecha") || "").trim();
+  const tipo = formData.get("tipo") === "retiro" ? "retiro" : "ingreso";
+  const monto = aNumero(formData.get("monto"));
+  const nota = String(formData.get("nota") || "").trim();
+  const destino = String(formData.get("destino") || "").trim();
+  if (!id) return { error: "Falta el movimiento a editar.", exito: null };
+  if (!fecha) return { error: "Falta la fecha.", exito: null };
+  if (monto == null || monto <= 0) return { error: "El monto tiene que ser un número positivo.", exito: null };
+  if (!["trading", "largo", "rentaFija"].includes(destino)) {
+    return { error: "Elegí a qué estrategia va (o de cuál sale).", exito: null };
+  }
+  const ok = await actualizarMovimientoFondo(id, { fecha, tipo, monto, nota, destino });
+  if (!ok) return { error: "No se encontró el movimiento.", exito: null };
+  revalidatePath("/movimientos");
+  revalidatePath("/", "layout");
+  return { error: null, exito: { id, fecha, tipo, monto } };
 }
 
 /**

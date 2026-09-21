@@ -1,8 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { quitarMovimientoFondo } from "@/app/actions";
 import { fechaLocal } from "@/lib/fechas";
+import FormEditarFondo from "./FormEditarFondo";
 
 const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -24,8 +25,9 @@ function BotonEliminar({ id }) {
   );
 }
 
-/** Movimientos de fondos cargados, con opción de eliminar. */
+/** Movimientos de fondos cargados, con opción de editar y eliminar. */
 export default function ListaFondos({ fondos }) {
+  const [editandoId, setEditandoId] = useState(null);
   if (!fondos?.length) {
     return (
       <p className="text-sm" style={{ color: "var(--text-muted)" }}>
@@ -40,36 +42,56 @@ export default function ListaFondos({ fondos }) {
         <tbody>
           {ordenados.map((f) => {
             const esIngreso = f.tipo !== "retiro";
+            const editando = editandoId === f.id;
             return (
-              <tr key={f.id} className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-                <td className="whitespace-nowrap px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                  {f.fecha ? formatoFecha.format(fechaLocal(f.fecha)) : "—"}
-                </td>
-                <td className="px-3 py-2">
-                  <span
-                    className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
-                    style={
-                      esIngreso
-                        ? { color: "var(--good)", background: "rgba(22, 163, 74, 0.08)" }
-                        : { color: "var(--bad)", background: "rgba(220, 38, 38, 0.08)" }
-                    }
-                  >
-                    {esIngreso ? "Ingreso" : "Retiro"}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums font-medium" style={{ color: esIngreso ? "var(--good)" : "var(--bad)" }}>
-                  {esIngreso ? "+" : "−"}{formatoARS.format(f.monto)}
-                </td>
-                <td className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                  {ETIQUETA_DESTINO[f.destino] || (f.destino ? f.destino : "Renta fija")}
-                </td>
-                <td className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                  {f.nota || "—"}
-                </td>
-                <td className="whitespace-nowrap px-3 py-2 text-right">
-                  <BotonEliminar id={f.id} />
-                </td>
-              </tr>
+              <Fragment key={f.id}>
+                <tr className="border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+                  <td className="whitespace-nowrap px-3 py-2 tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                    {f.fecha ? formatoFecha.format(fechaLocal(f.fecha)) : "—"}
+                  </td>
+                  <td className="px-3 py-2">
+                    <span
+                      className="inline-flex rounded px-1.5 py-0.5 text-xs font-medium"
+                      style={
+                        esIngreso
+                          ? { color: "var(--good)", background: "rgba(22, 163, 74, 0.08)" }
+                          : { color: "var(--bad)", background: "rgba(220, 38, 38, 0.08)" }
+                      }
+                    >
+                      {esIngreso ? "Ingreso" : "Retiro"}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums font-medium" style={{ color: esIngreso ? "var(--good)" : "var(--bad)" }}>
+                    {esIngreso ? "+" : "−"}{formatoARS.format(f.monto)}
+                  </td>
+                  <td className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                    {ETIQUETA_DESTINO[f.destino] || (f.destino ? f.destino : "Renta fija")}
+                  </td>
+                  <td className="max-w-[220px] break-words px-3 py-2 text-xs" style={{ color: f.nota ? "var(--text-primary)" : "var(--text-muted)" }} title={f.nota || ""}>
+                    {f.nota ? f.nota : <span style={{ color: "var(--text-muted)" }}>—</span>}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditandoId(editando ? null : f.id)}
+                        className="cursor-pointer rounded-md border px-2.5 py-1 text-xs font-medium"
+                        style={{ borderColor: "var(--border)", color: "var(--text-secondary)", background: "var(--surface-1)" }}
+                      >
+                        {editando ? "Cerrar" : "Editar"}
+                      </button>
+                      <BotonEliminar id={f.id} />
+                    </div>
+                  </td>
+                </tr>
+                {editando && (
+                  <tr>
+                    <td colSpan={6} className="bg-[var(--surface-2)] px-3 py-3">
+                      <FormEditarFondo fondo={f} onCancelar={() => setEditandoId(null)} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>

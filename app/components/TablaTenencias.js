@@ -385,7 +385,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
             {t.esCash || t.diasTenencia == null ? "—" : `${Math.round(t.diasTenencia)} ${Math.round(t.diasTenencia) === 1 ? "día" : "días"}`}
           </td>
           <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
-            {t.esCash ? "—" : formatoPrecio(precioMostrado, monedaMostrada, t.claseActivo)}
+            {t.esCash ? "—" : <ValorSensible>{formatoPrecio(precioMostrado, monedaMostrada, t.claseActivo)}</ValorSensible>}
             {!t.esCash && t.ticker && !enVivo && precioMostrado != null && (
               <div className="mt-0.5 text-xs font-normal" style={{ color: "var(--text-muted)" }} title="Sin cotización en vivo: se muestra el último precio conocido">
                 desactualizado
@@ -397,7 +397,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               "—"
             ) : (
               <>
-                {formatoPrecio(costoPromedioMostrado, monedaCosto, t.claseActivo)}
+                <ValorSensible>{formatoPrecio(costoPromedioMostrado, monedaCosto, t.claseActivo)}</ValorSensible>
                 {!t.esCash && t.cclCompra != null && (
                   <div className="mt-0.5 text-xs italic" style={{ color: "var(--text-muted)" }} title="Dólar CCL promedio de las compras de esta tenencia">
                     CCL {formatoARS2.format(t.cclCompra)}
@@ -521,7 +521,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
                         </span>
                         {totalGrupo > 0 && (
                           <span className="text-xl font-extrabold tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                            {formatoMoneda(totalGrupoMostrado, modoEfectivo === "usa" ? "USD" : "ARS")}
+                            <ValorSensible>{formatoMoneda(totalGrupoMostrado, modoEfectivo === "usa" ? "USD" : "ARS")}</ValorSensible>
                           </span>
                         )}
                       </button>
