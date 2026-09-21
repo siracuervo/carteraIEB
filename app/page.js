@@ -26,6 +26,14 @@ export default async function CarteraPage({ searchParams }) {
             snapshots={datos.snapshots}
             transacciones={datos.transacciones}
             fondos={datos.movimientosFondos}
+            traspasos={datos.traspasosEfectivo}
+            serieLargo={datos.serieLargo}
+            serieTrading={datos.serieTrading}
+            serieEfectivoTrading={datos.serieEfectivoTrading}
+            serieEfectivoLargo={datos.serieEfectivoLargo}
+            serieRentaFija={datos.serieRentaFija}
+            serieEfectivoRentaFija={datos.serieEfectivoRentaFija}
+            fechaCorteSleeves={datos.fechaCorteSleeves}
           />
 
           {datos.fuentePosiciones === "transacciones" && (
@@ -44,6 +52,8 @@ export default async function CarteraPage({ searchParams }) {
             tenenciasCierre={datos.tenenciasCierre}
             diasTenencia={datos.diasTenencia}
             diaTenencia={datos.diaTenencia}
+            efectivoSleeves={datos.efectivoSleeves}
+            traspasos={datos.traspasosEfectivo}
           />
 
           <DestacadosCartera tenencias={tenencias} nuevasEnCartera={datos.nuevasEnCartera} />

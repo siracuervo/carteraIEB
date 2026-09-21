@@ -54,6 +54,15 @@ export default function FormularioFondos() {
             style={estiloInput}
           />
         </label>
+        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Estrategia *
+          <select name="destino" required defaultValue="" className="rounded border px-2 py-1 text-sm" style={estiloInput}>
+            <option value="" disabled>¿A qué estrategia va (o de cuál sale)?</option>
+            <option value="trading">Trading</option>
+            <option value="largo">Largo plazo</option>
+            <option value="rentaFija">Renta fija</option>
+          </select>
+        </label>
       </div>
 
       {estado?.error && (

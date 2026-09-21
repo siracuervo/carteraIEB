@@ -7,6 +7,8 @@ import { fechaLocal } from "@/lib/fechas";
 const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
+const ETIQUETA_DESTINO = { trading: "Trading", largo: "Largo plazo", rentaFija: "Renta fija" };
+
 function BotonEliminar({ id }) {
   const [pendiente, start] = useTransition();
   return (
@@ -57,6 +59,9 @@ export default function ListaFondos({ fondos }) {
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums font-medium" style={{ color: esIngreso ? "var(--good)" : "var(--bad)" }}>
                   {esIngreso ? "+" : "−"}{formatoARS.format(f.monto)}
+                </td>
+                <td className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                  {ETIQUETA_DESTINO[f.destino] || (f.destino ? f.destino : "Renta fija")}
                 </td>
                 <td className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
                   {f.nota || "—"}

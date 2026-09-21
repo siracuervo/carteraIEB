@@ -6,6 +6,8 @@ import TablaTenencias from "./TablaTenencias";
 import ResultadosDelDia from "./ResultadosDelDia";
 import CalendarioDias from "./CalendarioDias";
 import ValorSensible from "./ValorSensible";
+import SlidersTraspaso from "./SlidersTraspaso";
+import ListaTraspasos from "./ListaTraspasos";
 import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 import { factorPrecioPorClase, precioVivo } from "@/lib/calculos";
 import { clasificar } from "@/lib/clasificacion";
@@ -32,7 +34,7 @@ function valorCierre(t) {
   return t.precioActual * t.cantidad * factorPrecioPorClase(t.claseActivo);
 }
 
-export default function SelectorVista({ tenencias, resultadosDia, diasOperados, dia, tenenciasCierre, diasTenencia, diaTenencia }) {
+export default function SelectorVista({ tenencias, resultadosDia, diasOperados, dia, tenenciasCierre, diasTenencia, diaTenencia, efectivoSleeves, traspasos }) {
   const [vista, setVista] = useState("tenencias");
   const [modo, setModo] = useState("cedear");
   // Hoy no es "histórico": ver la tenencia de hoy es lo mismo que la vista en
@@ -160,6 +162,14 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
           >
             Resultados diarios
           </button>
+          <button
+            type="button"
+            onClick={() => setVista("efectivo")}
+            className="cursor-pointer rounded-md px-5 py-2 text-sm font-semibold transition-colors"
+            style={vista === "efectivo" ? { background: "var(--marca)", color: "#fff" } : { color: "var(--text-muted)" }}
+          >
+            Pesos por estrategia
+          </button>
         </div>
         {vista === "tenencias" && (
           <div className="flex flex-wrap items-center gap-2">
@@ -217,6 +227,7 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
           </div>
         )}
       </div>
+      <div className="min-h-[420px]">
       {vista === "tenencias" ? (
         <TablaTenencias
           tenencias={esHistorico ? tenenciasCierre : tenencias}
@@ -225,9 +236,21 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
           esHistorico={esHistorico}
           modo={modo}
         />
-      ) : (
+      ) : vista === "resultados" ? (
         <ResultadosDelDia resultados={resultadosDia} diasOperados={diasOperados} dia={dia} live={liveRes} total={totalRes} />
+      ) : (
+        <div className="rounded-lg border p-4 min-h-[420px]" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            Caja separada por estrategia desde el último Portafolio (arranca 100% en trading). Los traspasos cambian
+            la proporción sin que entre ni salga plata de la cuenta.
+          </p>
+          <div className="mt-3 space-y-4">
+            <SlidersTraspaso key={JSON.stringify(efectivoSleeves)} saldos={efectivoSleeves} />
+            <ListaTraspasos traspasos={traspasos} saldos={efectivoSleeves} />
+          </div>
+        </div>
       )}
+      </div>
     </div>
   );
 }

@@ -18,6 +18,106 @@ function esCompra(t) {
 /** Formulario para corregir a mano una operación ya guardada (fecha, cantidad, precio, importe, divisa, CCL). */
 export default function FormEditarOperacion({ transaccion, onCancelar }) {
   const [estado, formAction, pendiente] = useActionState(editarOperacion, estadoInicial);
+  const esCaucion = (transaccion.ticker || "").toUpperCase() === "CAUCION" || /caucion/i.test(transaccion.operacion || "") || /caucion/i.test(transaccion.activo || "");
+  const esVencimiento = (transaccion.operacion || "").toUpperCase().includes("VENCIMIENTO");
+
+  if (esCaucion) {
+    return (
+      <form action={formAction} className="space-y-3 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+        <input type="hidden" name="clave" value={transaccion.clave} />
+        <input type="hidden" name="activo" value={transaccion.activo || "Caución"} />
+        <input type="hidden" name="ticker" value="CAUCION" />
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+            Editar caución
+          </p>
+          <button type="button" onClick={onCancelar} className="cursor-pointer text-xs underline" style={{ color: "var(--text-muted)" }}>
+            Cancelar
+          </button>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+            Movimiento *
+            <select name="tipoCaucion" defaultValue={esVencimiento ? "vencimiento" : "colocacion"} className="rounded border px-2 py-1 text-sm" style={estiloInput}>
+              <option value="colocacion">Colocación (sale de caja)</option>
+              <option value="vencimiento">Vencimiento (entra a caja con interés)</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+            Fecha *
+            <input type="date" name="fecha" required defaultValue={transaccion.fecha || ""} className="rounded border px-2 py-1 text-sm" style={estiloInput} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+            Hora (opcional)
+            <input type="time" name="hora" defaultValue={transaccion.hora || ""} className="rounded border px-2 py-1 text-sm" style={estiloInput} />
+          </label>
+          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+            Monto ARS *
+            <input
+              type="number"
+              name="monto"
+              required
+              min="0"
+              step="any"
+              defaultValue={transaccion.importeARS != null ? Math.abs(transaccion.importeARS) : ""}
+              className="rounded border px-2 py-1 text-sm"
+              style={estiloInput}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+            Tasa TNA % anual
+            <input
+              type="number"
+              name="tasa"
+              min="0"
+              step="any"
+              defaultValue={transaccion.tasa ?? ""}
+              className="rounded border px-2 py-1 text-sm"
+              style={estiloInput}
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+            Plazo (días)
+            <input
+              type="number"
+              name="plazoDias"
+              min="1"
+              step="1"
+              defaultValue={transaccion.plazoDias ?? ""}
+              className="rounded border px-2 py-1 text-sm"
+              style={estiloInput}
+            />
+          </label>
+          <input type="hidden" name="sleeve" value="rentaFija" />
+          <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+            La caución va siempre a renta fija.
+          </p>
+        </div>
+
+        {estado?.error && (
+          <p className="text-sm" style={{ color: "var(--bad)" }}>
+            {estado.error}
+          </p>
+        )}
+        {estado?.exito && (
+          <p className="text-sm" style={{ color: "var(--good)" }}>
+            Listo — caución actualizada.
+          </p>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            type="submit"
+            disabled={pendiente}
+            className="rounded-md px-4 py-1.5 text-sm font-medium text-white disabled:opacity-60"
+            style={{ background: "var(--marca)" }}
+          >
+            {pendiente ? "Guardando…" : "Guardar cambios"}
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   return (
     <form action={formAction} className="space-y-3 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
@@ -53,6 +153,14 @@ export default function FormEditarOperacion({ transaccion, onCancelar }) {
           <select name="operacion" defaultValue={esCompra(transaccion) ? "compra" : "venta"} className="rounded border px-2 py-1 text-sm" style={estiloInput}>
             <option value="compra">Compra</option>
             <option value="venta">Venta</option>
+          </select>
+        </label>
+        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }} title="En compras: a qué estrategia entra el lote. En ventas: de qué estrategia sale. Los bonos van a renta fija.">
+          Estrategia (lote)
+          <select name="sleeve" defaultValue={transaccion.sleeve === "largo" ? "largo" : transaccion.sleeve === "rentaFija" ? "rentaFija" : "trading"} className="rounded border px-2 py-1 text-sm" style={estiloInput}>
+            <option value="trading">Trading</option>
+            <option value="largo">Largo plazo</option>
+            <option value="rentaFija">Renta fija</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>

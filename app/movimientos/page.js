@@ -1,12 +1,13 @@
-import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, claveTransaccion } from "@/lib/storage";
+import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, leerClasificaciones, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
-import { importarOperacionesDelDia, importarPortafolio, guardarCierreManual } from "@/app/actions";
+import { importarOperacionesDelDia, guardarCierreManual } from "@/app/actions";
 import FormularioImportar from "@/app/components/FormularioImportar";
 import FormularioCierreManual from "@/app/components/FormularioCierreManual";
 import FormularioOperacionManual from "@/app/components/FormularioOperacionManual";
 import FormularioFondos from "@/app/components/FormularioFondos";
 import ListaFondos from "@/app/components/ListaFondos";
+import SelectorCargaMovimientos from "@/app/components/SelectorCargaMovimientos";
 import ListaActivos from "@/app/components/ListaActivos";
 import ListaMovimientos from "@/app/components/ListaMovimientos";
 import SeccionCarga from "@/app/components/SeccionCarga";
@@ -83,7 +84,6 @@ export default async function MovimientosPage() {
   const listaActivos = Array.from(activosOperados.values()).sort((a, b) =>
     (a.ticker || a.activo).localeCompare(b.ticker || b.activo)
   );
-  const ultimoPortafolio = portafolioHistorial[portafolioHistorial.length - 1] || null;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
@@ -98,10 +98,20 @@ export default async function MovimientosPage() {
       </div>
 
       <SeccionCarga
-        titulo="Agregar operación a mano"
+        titulo="Cargar movimientos"
         abierta={false}
+        estadoActual="Manual"
       >
-        <FormularioOperacionManual />
+        <SelectorCargaMovimientos
+          cantidadFondos={movimientosFondos.length}
+          operacion={<FormularioOperacionManual />}
+          fondos={
+            <div className="space-y-4">
+              <FormularioFondos />
+              <ListaFondos fondos={movimientosFondos} />
+            </div>
+          }
+        />
       </SeccionCarga>
 
       <SeccionCarga
@@ -121,19 +131,7 @@ export default async function MovimientosPage() {
       </SeccionCarga>
 
       <SeccionCarga
-        titulo="Ingresos y retiros de fondos"
-        abierta={false}
-        estadoActual={movimientosFondos.length ? `${movimientosFondos.length} movimientos` : null}
-        descripcion="Plata que entra o sale por fuera del mercado (depósitos, transferencias, retiros). Entra a caja de inmediato: un ingreso sube el efectivo y el total ese mismo día, y si después comprás con esa plata, la compra lo descuenta por su propio ticket — no se duplica."
-      >
-        <div className="space-y-4">
-          <FormularioFondos />
-          <ListaFondos fondos={movimientosFondos} />
-        </div>
-      </SeccionCarga>
-
-      <SeccionCarga
-        titulo="Operaciones del día (compras y ventas)"
+        titulo="Importar operaciones del día"
         abierta={false}
         descripcion="El export diario de IEB “Operaciones del día” trae las compras y ventas del día con cantidad, precio e importe ya calculados. Se agrega a esta misma lista de movimientos sin duplicar."
       >
@@ -197,22 +195,6 @@ export default async function MovimientosPage() {
           </div>
         </div>
       )}
-
-      <SeccionCarga
-        titulo="Portafolio actual"
-        abierta={portafolioHistorial.length === 0}
-        estadoActual={ultimoPortafolio ? `Último: ${ultimoPortafolio.fecha}` : null}
-        descripcion="En IEB descargá el reporte Portafolio (tenencia actual): trae cantidad, precio, costo promedio y resultado ya calculados por IEB, así que es la fuente más confiable de la pantalla principal. Reimportalo cuando quieras actualizarla."
-      >
-        <FormularioImportar
-          accion={importarPortafolio}
-          tipo="portafolio"
-          id="archivo-portafolio"
-          tituloDropzone="Elegí el reporte de Portafolio"
-          ayudaDropzone=".xlsx — podés seleccionar más de uno si tenés varias fechas guardadas"
-          textoBoton="Importar Portafolio"
-        />
-      </SeccionCarga>
     </main>
   );
 }

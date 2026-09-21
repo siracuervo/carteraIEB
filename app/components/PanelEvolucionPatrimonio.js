@@ -2,13 +2,19 @@
 
 import { useState } from "react";
 import GraficoEvolucionPatrimonio from "./GraficoEvolucionPatrimonio";
-import MedidorGanancia, { GananciaVariable } from "./MedidorGanancia";
+import MedidorGanancia, { GananciaSleeve } from "./MedidorGanancia";
 import { ACCESOS_RAPIDOS_FECHA } from "@/lib/accesosRapidosFecha";
 
 const OPCIONES = [
   { id: "grafico", etiqueta: "Gráfico" },
-  { id: "medidor", etiqueta: "Ganancia por periodos" },
-  { id: "variable", etiqueta: "Ganancia renta variable" },
+  { id: "medidor", etiqueta: "Rendimiento por periodos" },
+  { id: "variable", etiqueta: "Ganancias - Estrategia" },
+];
+
+const SUBSLEEVES = [
+  { id: "trading", etiqueta: "Trading" },
+  { id: "largo", etiqueta: "Largo plazo" },
+  { id: "rentaFija", etiqueta: "Renta fija" },
 ];
 
 const estiloInput = {
@@ -19,11 +25,12 @@ const estiloInput = {
 
 /**
  * Selector entre la evolución clásica (línea), el medidor de ganancia total
- * entre periodos personalizables y el de renta variable (con efectivo). Las
- * dos últimas pestañas comparten las fechas elegidas.
+ * entre periodos personalizables y el de trading. Las dos últimas pestañas
+ * comparten las fechas elegidas.
  */
-export default function PanelEvolucionPatrimonio({ serie, snapshots, transacciones, fondos }) {
+export default function PanelEvolucionPatrimonio({ serie, snapshots, transacciones, fondos, traspasos, serieLargo, serieTrading, serieEfectivoTrading, serieEfectivoLargo, serieRentaFija, serieEfectivoRentaFija, fechaCorteSleeves }) {
   const [vista, setVista] = useState("grafico");
+  const [sleeve, setSleeve] = useState("trading");
   const puntos = (snapshots || []).filter((p) => p.fecha && p.valorTotalARS != null);
   const fechaInicio = puntos[0]?.fecha || "";
   const fechaFin = puntos[puntos.length - 1]?.fecha || "";
@@ -39,7 +46,7 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots, transaccion
   const enPeriodo = vista === "medidor" || vista === "variable";
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-[300px] min-h-[300px] flex-col overflow-hidden text-sm">
       <div className="mb-1.5 flex shrink-0 gap-3" style={{ borderBottom: "1px solid var(--border)" }}>
         {OPCIONES.map((opcion) => {
           const activa = vista === opcion.id;
@@ -94,13 +101,47 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots, transaccion
           </div>
         </>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {vista === "grafico" ? (
-          <GraficoEvolucionPatrimonio serie={serie} />
+          <div className="flex flex-1 flex-col justify-center overflow-hidden py-1">
+            <GraficoEvolucionPatrimonio serie={serie} />
+          </div>
         ) : vista === "medidor" ? (
-          <MedidorGanancia snapshots={snapshots} desde={desde} hasta={hasta} />
+          <div className="flex flex-1 flex-col justify-center overflow-y-auto py-1">
+            <MedidorGanancia snapshots={snapshots} desde={desde} hasta={hasta} fondos={fondos} transacciones={transacciones} />
+          </div>
         ) : (
-          <GananciaVariable snapshots={snapshots} transacciones={transacciones} fondos={fondos} desde={desde} hasta={hasta} />
+          <div className="flex flex-1 flex-col overflow-hidden">
+            <div className="mb-1 flex shrink-0 gap-1">
+              {SUBSLEEVES.map((s) => {
+                const activo = sleeve === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSleeve(s.id)}
+                    className="cursor-pointer rounded-full border px-2 py-0.5 text-xs"
+                    style={{
+                      borderColor: activo ? "var(--marca)" : "var(--border)",
+                      background: activo ? "var(--marca-suave)" : "var(--surface-1)",
+                      color: activo ? "var(--marca)" : "var(--text-secondary)",
+                    }}
+                  >
+                    {s.etiqueta}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col justify-center overflow-y-auto py-1">
+              {sleeve === "trading" ? (
+                <GananciaSleeve sleeve="trading" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieTrading} serieEfectivo={serieEfectivoTrading} serieLargo={serieLargo} fechaCorteSleeves={fechaCorteSleeves} />
+              ) : sleeve === "largo" ? (
+                <GananciaSleeve sleeve="largo" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieLargo} serieEfectivo={serieEfectivoLargo} fechaCorteSleeves={fechaCorteSleeves} />
+              ) : (
+                <GananciaSleeve sleeve="rentaFija" snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} desde={desde} hasta={hasta} serieValor={serieRentaFija} serieEfectivo={serieEfectivoRentaFija} fechaCorteSleeves={fechaCorteSleeves} />
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

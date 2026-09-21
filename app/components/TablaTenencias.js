@@ -95,19 +95,28 @@ const COLUMNAS_ORDENABLES = {
 
 const GRUPOS_TENENCIAS = [
   {
-    id: "rentaVariable",
-    etiqueta: "Renta variable",
-    esMiembro: (t) => t.claseActivo === CLASES.CEDEAR || t.claseActivo === CLASES.ACCION_LOCAL || t.claseActivo === CLASES.OTRO,
+    id: "trading",
+    etiqueta: "Trading",
+    siempreVisible: true,
+    esMiembro: (t) => !t.esCash && (t.sleeve === "trading" || (!t.sleeve && (t.claseActivo === CLASES.CEDEAR || t.claseActivo === CLASES.ACCION_LOCAL || t.claseActivo === CLASES.OTRO))),
   },
   {
-    id: "efectivo",
-    etiqueta: "Efectivo",
-    esMiembro: (t) => t.claseActivo === CLASES.EFECTIVO || t.esCash,
+    id: "largo",
+    etiqueta: "Largo plazo",
+    siempreVisible: true,
+    esMiembro: (t) => !t.esCash && t.sleeve === "largo",
   },
   {
     id: "rentaFija",
     etiqueta: "Renta fija",
-    esMiembro: (t) => t.claseActivo === CLASES.BONO_SOBERANO,
+    siempreVisible: true,
+    esMiembro: (t) => !t.esCash && (t.sleeve === "rentaFija" || (!t.sleeve && t.claseActivo === CLASES.BONO_SOBERANO)),
+  },
+  {
+    id: "efectivo",
+    etiqueta: "Pesos",
+    siempreVisible: true,
+    esMiembro: (t) => t.esCash === true,
   },
 ];
 
@@ -115,7 +124,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
   const [orden, setOrden] = useState({ columna: "activo", direccion: "asc" });
   const [live, setLive] = useState(null);
   const [anchos, setAnchos] = useState({});
-  const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set(["rentaVariable", "rentaFija", "efectivo"]));
+  const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set(["trading", "largo", "rentaFija", "rentaVariable", "efectivo"]));
   const tablaRef = useRef(null);
   // En vista histórica no hay cotización viva: todo se valúa al cierre del día.
   // (el estado `live` puede traer precios de una visita previa a la vista en vivo;
@@ -340,7 +349,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     const valorMostrado = valorDe(t);
     const monedaValor = modoEfectivo === "usa" ? "USD" : "ARS";
     return (
-      <Fragment key={t.clave}>
+      <Fragment key={t.claveFila || t.clave}>
         <tr className="border-b last:border-0" style={{ borderColor: "var(--border)", background: indice % 2 === 1 ? "var(--gridline)" : "transparent" }}>
           <td className="px-2 py-1 align-middle">
             {t.esCash ? (
@@ -436,7 +445,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
   }, [tenencias, orden, liveVisible, modoEfectivo]);
 
   const grupos = useMemo(
-    () => GRUPOS_TENENCIAS.map((g) => ({ ...g, filas: filas.filter(g.esMiembro) })).filter((g) => g.filas.length > 0),
+    () => GRUPOS_TENENCIAS.map((g) => ({ ...g, filas: filas.filter(g.esMiembro) })).filter((g) => g.filas.length > 0 || g.siempreVisible),
     [filas]
   );
 

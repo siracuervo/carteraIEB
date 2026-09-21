@@ -27,6 +27,8 @@ function esVenta(t) {
 /** Etiqueta corta para angostar la columna Operación (el nombre completo va en el tooltip). */
 function operacionCorta(t) {
   const op = (t.operacion || "").toUpperCase().replace(/\s+/g, " ").trim();
+  if (op.includes("CAUCION") && op.includes("VENCIMIENTO")) return "Cauc. vto.";
+  if (op.includes("CAUCION")) return "Cauc. coloc.";
   if (op.includes("COMPRA") && op.includes("TRADING")) return "Compra T.";
   if (op.includes("VENTA") && op.includes("TRADING")) return "Venta T.";
   if (op.includes("COMPRA") && op.includes("PARIDAD")) return "Compra P.";
@@ -279,6 +281,16 @@ export default function ListaMovimientos({ transacciones }) {
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">
                           <span style={{ color: venta ? "var(--bad)" : "var(--good)" }} title={t.operacion}>{operacionCorta(t)}</span>
+                          {t.sleeve === "largo" && (
+                            <span className="ml-1 rounded px-1 py-0.5 text-xs" style={{ background: "var(--marca-suave)", color: "var(--marca)" }} title="Lote de largo plazo">
+                              LP
+                            </span>
+                          )}
+                          {t.sleeve === "rentaFija" && (
+                            <span className="ml-1 rounded px-1 py-0.5 text-xs" style={{ background: "var(--surface-2)", color: "var(--text-muted)" }} title="Renta fija">
+                              RF
+                            </span>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums" style={{ color: "var(--text-primary)" }}>
                           {t.cantidad != null ? t.cantidad.toLocaleString("es-AR") : "—"}
