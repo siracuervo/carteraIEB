@@ -31,7 +31,7 @@ for (const nombre of archivos) {
   let res = null;
   for (const access of ["public", "private"]) {
     try {
-      res = await put(`datos/${nombre}`, contenido, { access, contentType: "application/json", token });
+      res = await put(`datos/${nombre}`, contenido, { access, contentType: "application/json", token, allowOverwrite: true });
       break;
     } catch (err) {
       if (access === "private" || !/private store|public access/i.test(err.message)) throw err;
