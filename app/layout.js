@@ -58,8 +58,9 @@ export default function RootLayout({ children }) {
               </div>
               <div className="ml-auto hidden items-center gap-2 sm:flex sm:gap-3">
                 <BotonPrivacidad />
+                <DolarCCLEnVivo parte="ccl" />
                 <BotonActualizarTodo />
-                <DolarCCLEnVivo />
+                <DolarCCLEnVivo parte="actualizacion" />
               </div>
             </div>
           </header>
