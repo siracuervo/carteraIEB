@@ -47,17 +47,16 @@ export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
 
   const bloqueActualizacion = ts ? (
     <span
-      className="flex min-w-0 flex-col items-center gap-0 rounded-lg border px-2 py-0.5 text-center sm:flex-row sm:items-center sm:gap-3 sm:px-2.5 sm:py-1.5 sm:text-left"
-      style={{ borderColor: "var(--marca)", background: "var(--marca-suave)" }}
+      className="flex min-w-0 items-center gap-1.5 whitespace-nowrap"
       title="Momento de la última actualización de precios"
+      style={{ color: "var(--text-muted)" }}
     >
-      <span className="text-[10px] font-extrabold tracking-wide whitespace-nowrap sm:text-xs" style={{ color: "var(--marca)" }}>
-        ÚLTIMA ACTUALIZACIÓN
-      </span>
-      <span className="hidden text-xs font-bold tabular-nums whitespace-nowrap sm:inline" style={{ color: "var(--marca)" }}>
+      <span className="hidden text-xs sm:inline">última actualización</span>
+      <span className="text-xs sm:hidden">actualizado</span>
+      <span className="hidden text-xs tabular-nums sm:inline">
         {formatoFecha.format(ts)} · {formatoHora.format(ts)}
       </span>
-      <span className="text-xs font-bold tabular-nums whitespace-nowrap sm:hidden" style={{ color: "var(--marca)" }}>
+      <span className="text-xs tabular-nums sm:hidden">
         {formatoFechaCorta.format(ts)} · {formatoHora.format(ts)}
       </span>
     </span>

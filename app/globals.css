@@ -96,6 +96,23 @@ body {
   border-left: 1px solid var(--border);
 }
 
+/* Micro-interacciones de botones: levantan al hover (mouse) y se hunden al
+ * presionar (mouse o dedo). Solo donde hay hover real y nunca en deshabilitados. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+@media (hover: hover) {
+  button:not(:disabled):hover {
+    transform: translateY(-1px);
+    filter: brightness(1.12);
+  }
+}
+button:not(:disabled):active {
+  transform: scale(0.96);
+  filter: brightness(0.94);
+}
+
 /* Móvil: los controles de fecha y los selects nunca fuerzan scroll horizontal,
  * y la página no se puede panear de costado (clip donde hay soporte). */
 @media (max-width: 767px) {

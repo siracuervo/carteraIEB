@@ -1,12 +1,15 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTransition } from "react";
 import InputFechaCalendario from "./InputFechaCalendario";
+import IndicadorCarga from "./IndicadorCarga";
 import { aISO } from "@/lib/accesosRapidosFecha";
 
 export default function FiltroFechasTrades({ desde, hasta, minFecha, maxFecha, embedded = false }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [filtrando, startFiltro] = useTransition();
 
   function actualizar(campo, valor) {
     const hoy = aISO(new Date());
@@ -16,11 +19,11 @@ export default function FiltroFechasTrades({ desde, hasta, minFecha, maxFecha, e
     if (valor) params.set(campo, valor);
     else params.delete(campo);
     const qs = params.toString();
-    router.push(`/trades${qs ? `?${qs}` : ""}`, { scroll: false });
+    startFiltro(() => router.push(`/trades${qs ? `?${qs}` : ""}`, { scroll: false }));
   }
 
   function limpiar() {
-    router.push("/trades", { scroll: false });
+    startFiltro(() => router.push("/trades", { scroll: false }));
   }
 
   const hayFiltro = Boolean(desde || hasta);
@@ -44,6 +47,7 @@ export default function FiltroFechasTrades({ desde, hasta, minFecha, maxFecha, e
         </label>
         <InputFechaCalendario value={hastaDisplay} min={minFecha} max={maxFecha} onChange={(v) => actualizar("hasta", v)} />
       </div>
+      {filtrando && <IndicadorCarga texto="Filtrando…" />}
       {hayFiltro && (
         <button
           type="button"

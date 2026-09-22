@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import TablaTenencias from "./TablaTenencias";
 import ResultadosDelDia from "./ResultadosDelDia";
 import CalendarioDias from "./CalendarioDias";
+import IndicadorCarga from "./IndicadorCarga";
 import ValorSensible from "./ValorSensible";
 import SlidersTraspaso from "./SlidersTraspaso";
 import ListaTraspasos from "./ListaTraspasos";
@@ -45,19 +46,20 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [cambiandoDia, startCambioDia] = useTransition();
   const totalCierre = esHistorico ? (tenenciasCierre || []).reduce((acc, t) => acc + (valorCierre(t) || 0), 0) : 0;
 
   function cambiarDiaTenencia(nuevoDia) {
     const params = new URLSearchParams(searchParams);
     if (nuevoDia) params.set("diaTenencia", nuevoDia);
     else params.delete("diaTenencia");
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    startCambioDia(() => router.push(`${pathname}?${params.toString()}`, { scroll: false }));
   }
 
   function cambiarDia(nuevaDia) {
     const params = new URLSearchParams(searchParams);
     params.set("dia", nuevaDia);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    startCambioDia(() => router.push(`${pathname}?${params.toString()}`, { scroll: false }));
   }
 
   // Encabezado de resultados en vivo: mismos precios y total que la tabla de
@@ -223,7 +225,15 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
           </div>
         )}
       </div>
-      <div className="min-h-[320px] sm:min-h-[420px]">
+      <div className="relative min-h-[320px] sm:min-h-[420px]">
+      {cambiandoDia && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-lg"
+          style={{ background: "color-mix(in srgb, var(--surface-1) 72%, transparent)" }}
+        >
+          <IndicadorCarga texto="Cargando día…" />
+        </div>
+      )}
       {vista === "tenencias" ? (
         <TablaTenencias
           tenencias={esHistorico ? tenenciasCierre : tenencias}

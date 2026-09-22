@@ -1,18 +1,21 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useTransition } from "react";
 import { ACCESOS_RAPIDOS_FECHA } from "@/lib/accesosRapidosFecha";
+import IndicadorCarga from "./IndicadorCarga";
 
 export default function FiltroFechasActivo({ desde, hasta, fechaInicio }) {
   const router = useRouter();
   const pathname = usePathname();
+  const [filtrando, startFiltro] = useTransition();
 
   function actualizar(nuevoDesde, nuevoHasta) {
     const params = new URLSearchParams();
     if (nuevoDesde) params.set("desde", nuevoDesde);
     if (nuevoHasta) params.set("hasta", nuevoHasta);
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    startFiltro(() => router.push(query ? `${pathname}?${query}` : pathname));
   }
 
   const hayFiltro = Boolean(desde || hasta);
@@ -42,6 +45,7 @@ export default function FiltroFechasActivo({ desde, hasta, fechaInicio }) {
             style={{ borderColor: "var(--border)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
         </label>
+        {filtrando && <IndicadorCarga texto="Filtrando…" />}
         {hayFiltro && (
           <button
             type="button"

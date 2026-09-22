@@ -38,12 +38,13 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
           </div>
 
           <div className={`${CLASE_TARJETA} flex-1 p-2 sm:p-3 lg:min-w-56`} style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+            <div className="mb-1 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Composición de Portafolio</div>
             <div
               className="flex items-start justify-between gap-2 sm:gap-3"
               title="Proporciones sobre el valor en ARS de las posiciones valuadas"
             >
               {(composicion ?? []).map((grupo) => (
-                <div key={grupo.etiqueta} className="min-w-0 flex-1">
+                <div key={grupo.etiqueta} className="min-w-0 flex-1 text-center">
                   <div className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{grupo.etiqueta}</div>
                   <div className="mt-0.5 text-lg font-semibold tabular-nums sm:text-xl" style={{ color: "var(--text-primary)" }}>
                     <ValorSensible>{formatoProporcion.format(grupo.pct)}</ValorSensible>
