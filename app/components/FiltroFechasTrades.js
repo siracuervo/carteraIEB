@@ -2,13 +2,14 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import InputFechaCalendario from "./InputFechaCalendario";
+import { aISO } from "@/lib/accesosRapidosFecha";
 
 export default function FiltroFechasTrades({ desde, hasta, minFecha, maxFecha, embedded = false }) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   function actualizar(campo, valor) {
-    const hoy = new Date().toISOString().slice(0, 10);
+    const hoy = aISO(new Date());
     if (valor && valor > hoy) return;
     if (minFecha && valor && valor < minFecha) return;
     const params = new URLSearchParams(searchParams.toString());

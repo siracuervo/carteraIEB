@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { guardarNotaTrade } from "@/app/actions";
 
 const estadoInicial = { error: null, exito: null };
@@ -9,6 +10,12 @@ export default function EditorNotasTrade({ tradeId, initialRazon, initialErrores
   const [razon, setRazon] = useState(initialRazon || "");
   const [errores, setErrores] = useState(initialErrores || "");
   const [estado, accion, pending] = useActionState(guardarNotaTrade, estadoInicial);
+  const router = useRouter();
+
+  // Tras guardar, recargar props del servidor para que "Guardado"/preview queden consistentes
+  useEffect(() => {
+    if (estado?.exito) router.refresh();
+  }, [estado?.exito, router]);
 
   const hasNotas = Boolean((initialRazon && initialRazon.trim()) || (initialErrores && initialErrores.trim()));
   const dirty = razon !== (initialRazon || "") || errores !== (initialErrores || "");

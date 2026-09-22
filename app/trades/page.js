@@ -1,6 +1,7 @@
-import { leerTransacciones, leerPortafolioHistorial, leerClasificaciones, leerNotasTrades, leerCierresDiarios } from "@/lib/storage";
+import { leerTransacciones, leerPortafolioHistorial, leerClasificaciones, leerNotasTrades, leerCierresDiarios, leerCierresManuales } from "@/lib/storage";
 import { resolverTickersConPortafolio, calcularTrades } from "@/lib/calculos";
 import { obtenerPrecios } from "@/lib/precios";
+import { aISO } from "@/lib/accesosRapidosFecha";
 import { SLEEVES } from "@/lib/sleeves";
 import { TICKERS_NO_MERCADO } from "@/lib/clasificacion";
 import TablaTrades from "@/app/components/TablaTrades";
@@ -25,19 +26,21 @@ export default async function TradesPage({ searchParams }) {
   const sp = await searchParams;
   const desde = sp?.desde || null;
   const hasta = sp?.hasta || null;
-  const [transaccionesRaw, portafolioHistorial, overrides, notasTrades, cierresDiarios] = await Promise.all([
+  const [transaccionesRaw, portafolioHistorial, overrides, notasTrades, cierresDiarios, cierresManuales] = await Promise.all([
     leerTransacciones(),
     leerPortafolioHistorial(),
     leerClasificaciones(),
     leerNotasTrades(),
     leerCierresDiarios(),
+    leerCierresManuales(),
   ]);
   const transacciones = resolverTickersConPortafolio(transaccionesRaw, portafolioHistorial);
   const tickersUnicos = Array.from(new Set(transacciones.map((t) => t.ticker).filter(Boolean))).filter(
     (t) => !TICKERS_NO_MERCADO.has(String(t).toUpperCase())
   );
   const precios = tickersUnicos.length ? await obtenerPrecios(tickersUnicos) : new Map();
-  // Fallback SPCX etc: si guardaste precio de cierre manual (cierresDiarios) y no hay cotización viva, usar último cierre
+  // Sin cotización viva: último cierre capturado. Un cierre guardado a mano hoy
+  // pisa el vivo aunque haya cotización.
   {
     const fechasDesc = Object.keys(cierresDiarios).sort().reverse();
     function ultimoCierre(ticker) {
@@ -52,13 +55,12 @@ export default async function TradesPage({ searchParams }) {
       const p = ultimoCierre(tk);
       if (p != null) precios.set(tk, { precio: p, ultimo: p, moneda: "ARS", variacionDiariaPct: null });
     }
-    // Si hoy guardaste un cierre manual, que pise el vivo aunque haya cotización (ej. SPCX hoy 4920 vs vivo 4942)
-    const hoyISOTrades = new Date().toISOString().slice(0, 10);
-    const cierresHoy = cierresDiarios[hoyISOTrades];
-    if (cierresHoy) {
+    const hoyISOTrades = aISO(new Date());
+    const manualesHoy = cierresManuales[hoyISOTrades];
+    if (manualesHoy) {
       for (const tk of tickersUnicos) {
-        const pHoy = cierresHoy[tk];
-        if (pHoy != null && pHoy > 0) precios.set(tk, { precio: pHoy, ultimo: pHoy, moneda: "ARS", variacionDiariaPct: null });
+        const pHoy = manualesHoy[tk];
+        if (pHoy != null && pHoy > 0) precios.set(tk, { precio: pHoy, ultimo: pHoy, moneda: "ARS", variacionDiariaPct: null, cierreManual: true });
       }
     }
   }
@@ -66,7 +68,7 @@ export default async function TradesPage({ searchParams }) {
   const fechasVentas = cerradosTodos.map((t) => t.fechaVenta).filter(Boolean).sort();
   const fechasTrans = transacciones.map((t) => t.fecha).filter(Boolean).sort();
   const minFecha = fechasVentas[0] || fechasTrans[0] || null;
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  const hoyISO = aISO(new Date());
   const maxFecha = fechasVentas[fechasVentas.length - 1] || hoyISO;
   const dentroRango = (t) => {
     const f = t.fechaVenta;

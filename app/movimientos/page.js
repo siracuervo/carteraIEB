@@ -1,7 +1,7 @@
 import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, leerClasificaciones, leerCierresManuales, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
-import { importarOperacionesDelDia, guardarCierreManual } from "@/app/actions";
+import { importarOperacionesDelDia, guardarCierreManual, importarRespaldo } from "@/app/actions";
 import FormularioImportar from "@/app/components/FormularioImportar";
 import FormularioCierreManual from "@/app/components/FormularioCierreManual";
 import FormularioOperacionManual from "@/app/components/FormularioOperacionManual";
@@ -130,6 +130,35 @@ export default async function MovimientosPage() {
       >
         <FormularioCierreManual accion={guardarCierreManual} />
         <ListaCierresManuales cierres={cierresManuales} />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Respaldo de datos"
+        abierta={false}
+        descripcion="Descargá todos los datos de la app (operaciones, Portfolios, cierres, fondos, notas) en un único archivo, y restauralo donde quieras — en Vercel, subirlo acá carga todos los JSON necesarios al Blob sin importarlos uno por uno. Restaurar pisa los datos actuales."
+      >
+        <div className="space-y-4">
+          <div>
+            <a
+              href="/api/respaldo"
+              download
+              className="inline-block rounded-md px-4 py-2 text-sm font-medium text-white"
+              style={{ background: "var(--marca)" }}
+            >
+              Descargar respaldo completo
+            </a>
+          </div>
+          <FormularioImportar
+            accion={importarRespaldo}
+            tipo="respaldo"
+            id="archivo-respaldo"
+            tituloDropzone="Restaurar respaldo"
+            ayudaDropzone=".json — el archivo descargado de acá; pisa los datos actuales"
+            textoBoton="Restaurar respaldo"
+            accept=".json"
+            multiple={false}
+          />
+        </div>
       </SeccionCarga>
 
       <SeccionCarga

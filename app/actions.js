@@ -487,6 +487,43 @@ export async function agregarTraspasoEfectivo(prevState, formData) {
   return { error: null, exito: { desde, hacia, monto } };
 }
 
+/**
+ * Restaura el respaldo completo de la carpeta data desde un JSON exportado
+ * (el que descarga /api/respaldo). Pisa los datos actuales con los del
+ * archivo — en Vercel esto sube todos los JSON necesarios al Blob sin
+ * importarlos uno por uno.
+ */
+export async function importarRespaldo(prevState, formData) {
+  const archivos = formData.getAll("archivos").filter((f) => f && typeof f === "object" && f.size > 0);
+  if (!archivos.length) {
+    return { error: "Seleccioná el archivo de respaldo (.json).", exito: null };
+  }
+  if (archivos.length > 1) {
+    return { error: "Subí un solo archivo de respaldo por vez.", exito: null };
+  }
+  const archivo = archivos[0];
+  if (archivo.size > 20 * 1024 * 1024) {
+    return { error: "El archivo es demasiado grande (máximo 20 MB).", exito: null };
+  }
+  let objeto;
+  try {
+    objeto = JSON.parse(await archivo.text());
+  } catch {
+    return { error: "El archivo no es un JSON válido.", exito: null };
+  }
+  const { restaurarTodosLosDatos } = await import("@/lib/storage");
+  let escritos;
+  try {
+    escritos = await restaurarTodosLosDatos(objeto);
+  } catch (err) {
+    return { error: err.message, exito: null };
+  }
+  revalidatePath("/", "layout");
+  revalidatePath("/movimientos");
+  revalidatePath("/trades");
+  return { error: null, exito: { escritos } };
+}
+
 export async function quitarTraspasoEfectivo(id) {
   if (!id) return { error: "Falta el traspaso.", exito: null };
   const ok = await eliminarTraspasoEfectivo(String(id));

@@ -6,6 +6,9 @@ const estadoInicial = { error: null, exito: null };
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 
 function mensajeExito(tipo, exito) {
+  if (tipo === "respaldo") {
+    return `Listo — respaldo restaurado (${exito.escritos.length} archivos: ${exito.escritos.join(", ")}).`;
+  }
   if (tipo === "portafolio") {
     return `Listo — ${exito.importados} archivo(s) importado(s). Último patrimonio: ${formatoARS.format(exito.ultimoPatrimonio)}.`;
   }
@@ -17,7 +20,7 @@ function mensajeExito(tipo, exito) {
   return `Listo — ${exito.agregadas} operaciones nuevas, ${exito.actualizadas} completadas con datos del otro archivo.`;
 }
 
-export default function FormularioImportar({ accion, tipo, id, tituloDropzone, ayudaDropzone, textoBoton = "Importar" }) {
+export default function FormularioImportar({ accion, tipo, id, tituloDropzone, ayudaDropzone, textoBoton = "Importar", accept = ".xlsx", multiple = true }) {
   const [estado, formAction, pendiente] = useActionState(accion, estadoInicial);
   const [archivos, setArchivos] = useState([]);
   const formRef = useRef(null);
@@ -55,8 +58,8 @@ export default function FormularioImportar({ accion, tipo, id, tituloDropzone, a
           id={id}
           type="file"
           name="archivos"
-          accept=".xlsx"
-          multiple
+          accept={accept}
+          multiple={multiple}
           required
           className="sr-only"
           onChange={(e) => setArchivos(Array.from(e.target.files).map((f) => f.name))}
