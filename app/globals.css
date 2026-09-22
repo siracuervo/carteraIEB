@@ -122,6 +122,12 @@ a.btn-anim:active {
   filter: brightness(1.15);
 }
 
+/* Pestañas de navegación: sin escala en hover (movía a las vecinas),
+ * solo aclarado. */
+button.nav-tab:hover {
+  transform: none;
+}
+
 /* Móvil: los controles de fecha y los selects nunca fuerzan scroll horizontal,
  * y la página no se puede panear de costado (clip donde hay soporte). */
 @media (max-width: 767px) {

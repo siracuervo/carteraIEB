@@ -35,9 +35,9 @@ export default function NavTabs() {
             type="button"
             onClick={() => ir(tab.href)}
             disabled={cargando}
-            className="flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 py-1 text-sm font-medium disabled:opacity-70"
+            className="nav-tab flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 py-1 text-sm font-medium disabled:opacity-70"
             style={{
-              color: activa ? "var(--marca)" : "var(--text-muted)",
+              color: cargando ? "#fff" : activa ? "var(--marca)" : "var(--text-muted)",
               borderColor: activa ? "var(--marca)" : "transparent",
             }}
           >

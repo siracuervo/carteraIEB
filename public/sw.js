@@ -1,7 +1,7 @@
 // Service worker mínimo para que la app sea instalable (PWA).
-// Las navegaciones (HTML) siempre van a red para no mostrar datos viejos;
-// solo se cachean assets estáticos del mismo origen (con hash, inmutables).
-const CACHE = "siracartera-v1";
+// Las navegaciones (HTML) y /api/* siempre van a red para no mostrar datos
+// viejos; solo se cachean los JS/CSS con hash de /_next/static (inmutables).
+const CACHE = "siracartera-v2";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
@@ -22,6 +22,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  if (!url.pathname.startsWith("/_next/static/")) return;
   event.respondWith(
     caches.open(CACHE).then(async (cache) => {
       const hit = await cache.match(request);
