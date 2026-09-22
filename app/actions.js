@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo, actualizarMovimientoFondo, agregarTraspasoEfectivo as guardarTraspaso, eliminarTraspasoEfectivo } from "@/lib/storage";
+import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo, actualizarMovimientoFondo, agregarTraspasoEfectivo as guardarTraspaso, eliminarTraspasoEfectivo, guardarNotaTrade as persistirNotaTrade } from "@/lib/storage";
 import { clasificar, CLASES } from "@/lib/clasificacion";
 import { parseArchivoIEB } from "@/lib/parseIEB";
 import { parsePortafolio } from "@/lib/parsePortafolio";
@@ -169,6 +169,38 @@ export async function guardarCierreManual(prevState, formData) {
     return { error: "Completá ticker, fecha y un precio válido.", exito: null };
   }
   await mergeCierresDiarios({ [fecha]: { [ticker]: precio } });
+  const { mergeCierresManuales } = await import("@/lib/storage");
+  await mergeCierresManuales({ [fecha]: { [ticker]: precio } });
+  revalidatePath("/", "layout");
+  revalidatePath("/movimientos");
+  return { error: null, exito: { ticker, fecha, precio } };
+}
+
+export async function eliminarCierreManualAction(prevState, formData) {
+  const ticker = String(formData.get("ticker") || "").trim().toUpperCase();
+  const fecha = String(formData.get("fecha") || "");
+  if (!ticker || !fecha) return { error: "Faltan datos.", exito: null };
+  const { eliminarCierreManual } = await import("@/lib/storage");
+  const ok = await eliminarCierreManual(fecha, ticker);
+  if (!ok) return { error: "No se encontró el cierre.", exito: null };
+  revalidatePath("/", "layout");
+  revalidatePath("/movimientos");
+  return { error: null, exito: { ticker, fecha } };
+}
+
+export async function actualizarCierreManualAction(prevState, formData) {
+  const ticker = String(formData.get("ticker") || "").trim().toUpperCase();
+  const fecha = String(formData.get("fecha") || "");
+  const precio = Number(String(formData.get("precio") || "").replace(",", "."));
+  if (!ticker || !fecha || !Number.isFinite(precio) || precio <= 0) {
+    return { error: "Precio inválido.", exito: null };
+  }
+  const { actualizarCierreManual } = await import("@/lib/storage");
+  try {
+    await actualizarCierreManual(fecha, ticker, precio);
+  } catch (e) {
+    return { error: e.message, exito: null };
+  }
   revalidatePath("/", "layout");
   revalidatePath("/movimientos");
   return { error: null, exito: { ticker, fecha, precio } };
@@ -462,4 +494,18 @@ export async function quitarTraspasoEfectivo(id) {
   revalidatePath("/movimientos");
   revalidatePath("/", "layout");
   return { error: null, exito: { eliminado: true } };
+}
+
+export async function guardarNotaTrade(prevState, formData) {
+  const id = String(formData.get("id") || "").trim();
+  const razon = String(formData.get("razon") || "");
+  const errores = String(formData.get("errores") || "");
+  if (!id) return { error: "Falta el trade.", exito: null };
+  try {
+    await persistirNotaTrade(id, { razon, errores });
+  } catch (err) {
+    return { error: err.message, exito: null };
+  }
+  revalidatePath("/trades");
+  return { error: null, exito: { id } };
 }

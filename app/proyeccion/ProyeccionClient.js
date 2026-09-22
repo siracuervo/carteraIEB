@@ -297,27 +297,44 @@ function formateaTasa(decimal) {
 
 function ContenidoSleeve({ dato, ingresos }) {
   const lista = ingresos || [];
+  const g = dato.ganancia ?? 0;
   return (
     <>
-      <div className="font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+      <div className="text-[15px] font-bold tabular-nums whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
         {formatoARS.format(dato.fin)}
       </div>
-      <div className="text-xs tabular-nums" style={{ color: colorGanancia(dato.ganancia) }}>
-        {signo(dato.ganancia)}{formatoARS.format(Math.abs(dato.ganancia ?? 0))} en el mes
+      <div className="mt-1">
+        <span
+          className="inline-flex rounded px-1.5 py-0.5 text-xs font-semibold tabular-nums whitespace-nowrap"
+          style={
+            g > 0
+              ? { color: "var(--good)", background: "rgba(22, 163, 74, 0.12)" }
+              : g < 0
+                ? { color: "var(--bad)", background: "rgba(220, 38, 38, 0.12)" }
+                : { color: "var(--text-muted)", background: "rgba(100, 116, 139, 0.14)" }
+          }
+        >
+          {signo(dato.ganancia)}{formatoARS.format(Math.abs(dato.ganancia ?? 0))} en el mes
+        </span>
       </div>
       {lista.length > 0 && (
-        <div className="mt-1 whitespace-normal break-words text-[11px] font-medium uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
-          Ingresos:
+        <div className="mt-1.5 border-t pt-1.5" style={{ borderColor: "var(--border)" }}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--text-muted)" }}>
+            Ingresos
+          </div>
         </div>
       )}
       {lista.map((ing) => (
-        <div key={ing.id} className="mt-0.5 whitespace-normal break-words text-xs tabular-nums">
+        <div key={ing.id} className="mt-0.5 break-words text-xs tabular-nums">
           <span style={{ color: "var(--text-muted)" }}>
             {ing.fecha ? formatoFechaLarga.format(fechaLocal(ing.fecha)) : "—"} ·{" "}
           </span>
-          <span style={{ color: "var(--good)" }}>
-            +{formatoARS.format(ing.monto)}{ing.nota ? ` · ${ing.nota}` : ""}
+          <span className="font-semibold" style={{ color: "var(--good)" }}>
+            +{formatoARS.format(ing.monto)}
           </span>
+          {ing.nota && (
+            <span style={{ color: "var(--text-muted)" }}> · {ing.nota}</span>
+          )}
         </div>
       ))}
     </>

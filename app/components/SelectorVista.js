@@ -107,7 +107,7 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
 
   function precioActualResDe(t) {
     if (t.tipo !== "compra") return null;
-    // Misma lógica que tenencias: ask en rueda, último operado fuera de ella.
+    // Misma lógica que tenencias: ask en rueda, cierre fuera de ella.
     const dato = esUltimoRes ? liveRes?.cedear?.[t.ticker] : null;
     if (dato) {
       const { claseActivo } = clasificar({ activo: t.activo, ticker: t.ticker, operacion: null });

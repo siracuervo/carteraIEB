@@ -1,4 +1,6 @@
 import { obtenerPrecios, obtenerPreciosDirecto, obtenerTipoCambioDolares } from "@/lib/precios";
+import { leerCierresDiarios } from "@/lib/storage";
+import { aISO } from "@/lib/accesosRapidosFecha";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -25,10 +27,22 @@ export async function GET(request) {
     return Response.json({ ts: Date.now(), ccl: dolares.ccl, oficial: dolares.oficial, cedear: {}, usa: {} });
   }
 
-  const [cedear, usa] = await Promise.all([
+  const [cedear, usa, cierres] = await Promise.all([
     obtenerPrecios(tickers),
     obtenerPreciosDirecto(tickers),
+    leerCierresDiarios(),
   ]);
+
+  // Un cierre manual guardado hoy (ej. SPCX) pisa la cotización viva: es el
+  // precio que el usuario fijó y vale para todo el día.
+  const hoy = aISO(new Date());
+  const cierresHoy = cierres[hoy] || {};
+  for (const tk of tickers) {
+    const pHoy = cierresHoy[tk] ?? cierresHoy[String(tk).toUpperCase()];
+    if (pHoy != null && pHoy > 0) {
+      cedear.set(tk, { precio: pHoy, ultimo: pHoy, moneda: "ARS", variacionDiariaPct: null, cierreManual: true });
+    }
+  }
 
   const map = (m) => {
     const resultado = {};

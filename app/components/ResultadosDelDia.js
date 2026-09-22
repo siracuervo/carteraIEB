@@ -46,8 +46,8 @@ export default function ResultadosDelDia({ resultados, diasOperados, dia, live, 
 
   function precioActualDe(t) {
     if (t.tipo !== "compra") return null;
-    // Misma lógica que tenencias: ask en rueda, último operado fuera de ella
-    // (bonos siempre a último). Sin vivo se usa el precio del snapshot (cierre).
+    // Misma lógica que tenencias: ask en rueda, cierre fuera de ella. Sin
+    // vivo se usa el precio del snapshot (cierre).
     const dato = esUltimo ? live?.cedear?.[t.ticker] : null;
     if (dato) {
       const { claseActivo } = clasificar({ activo: t.activo, ticker: t.ticker, operacion: null });

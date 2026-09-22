@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { CLASES } from "@/lib/clasificacion";
-import { factorPrecioPorClase, precioVivo } from "@/lib/calculos";
+import { factorPrecioPorClase, mercadoAbierto, precioVivo } from "@/lib/calculos";
 import Logo from "./Logo";
 import ValorSensible from "./ValorSensible";
 import BotonOrden from "./BotonOrden";
@@ -123,6 +123,13 @@ const GRUPOS_TENENCIAS = [
 export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, esHistorico, modo }) {
   const [orden, setOrden] = useState({ columna: "activo", direccion: "asc" });
   const [live, setLive] = useState(null);
+  // En sesión (BYMA 10:30–17:00 ART): precio vivo (ask). Fuera de sesión el
+  // valor mostrado es el cierre — el título de la columna lo refleja.
+  const [enSesion, setEnSesion] = useState(() => mercadoAbierto(new Date()));
+  useEffect(() => {
+    const id = setInterval(() => setEnSesion(mercadoAbierto(new Date())), 30_000);
+    return () => clearInterval(id);
+  }, []);
   const [anchos, setAnchos] = useState({});
   const [gruposAbiertos, setGruposAbiertos] = useState(() => new Set(["trading", "largo", "rentaFija", "rentaVariable", "efectivo"]));
   const tablaRef = useRef(null);
@@ -296,7 +303,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     return modoEfectivo === "usa" ? (usa?.precio ?? null) : (precioVivoDe(t) ?? t.precioActual);
   }
 
-  /** Precio vivo LOCAL en ARS (bonos a último, resto según rueda). */
+  /** Precio vivo LOCAL en ARS (en rueda al ask, fuera de rueda al cierre). */
   function precioVivoDe(t) {
     const dato = t.ticker && liveVisible?.cedear ? liveVisible.cedear[t.ticker] : null;
     // Ojo con la moneda: el fallback a NYSE/NASDAQ viene en USD y no se puede
@@ -476,7 +483,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               </div>
             </div>
             <div className="min-w-0">
-              <div style={{ color: "var(--text-muted)" }}>Precio actual ({d.monedaMostrada})</div>
+              <div style={{ color: "var(--text-muted)" }}>{esHistorico || !enSesion ? "Precio de cierre" : "Precio actual"} ({d.monedaMostrada})</div>
               <div className="truncate tabular-nums" style={{ color: "var(--text-secondary)" }}>
                 <ValorSensible>{formatoPrecio(d.precioMostrado, d.monedaMostrada, t.claseActivo)}</ValorSensible>
                 {t.ticker && !d.enVivo && d.precioMostrado != null && (
@@ -579,7 +586,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               </ColumnaConAncho>
               <ColumnaConAncho columna="precio" ancho={anchos.precio} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
                 <BotonOrden columna="precio" ordenActual={orden} onClick={alHacerClick}>
-                  {esHistorico ? "Precio cierre (ARS)" : <>Precio actual {modoEfectivo === "usa" ? "(USD)" : "(ARS)"}</>}
+                  {esHistorico || !enSesion ? <>Precio de cierre {modoEfectivo === "usa" ? "(USD)" : "(ARS)"}</> : <>Precio actual {modoEfectivo === "usa" ? "(USD)" : "(ARS)"}</>}
                 </BotonOrden>
               </ColumnaConAncho>
               <ColumnaConAncho columna="costo" ancho={anchos.costo} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">

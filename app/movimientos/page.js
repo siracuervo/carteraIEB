@@ -1,4 +1,4 @@
-import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, leerClasificaciones, claveTransaccion } from "@/lib/storage";
+import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, leerClasificaciones, leerCierresManuales, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
 import { importarOperacionesDelDia, guardarCierreManual } from "@/app/actions";
@@ -10,6 +10,7 @@ import ListaFondos from "@/app/components/ListaFondos";
 import SelectorCargaMovimientos from "@/app/components/SelectorCargaMovimientos";
 import ListaActivos from "@/app/components/ListaActivos";
 import ListaMovimientos from "@/app/components/ListaMovimientos";
+import ListaCierresManuales from "@/app/components/ListaCierresManuales";
 import SeccionCarga from "@/app/components/SeccionCarga";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ function esDiaHabil(fecha) {
 }
 
 export default async function MovimientosPage() {
-  const [transaccionesRaw, portafolioHistorial, movimientosFondos] = await Promise.all([leerTransacciones(), leerPortafolioHistorial(), leerMovimientosFondos()]);
+  const [transaccionesRaw, portafolioHistorial, movimientosFondos, cierresManuales] = await Promise.all([leerTransacciones(), leerPortafolioHistorial(), leerMovimientosFondos(), leerCierresManuales()]);
 
   // Misma resolución de tickers que usan el dashboard y las páginas de activo, para
   // que la clave de cada operación coincida con la del enlace /activo/[clave].
@@ -128,6 +129,7 @@ export default async function MovimientosPage() {
         descripcion="Para tickers sin API (ej. TMF27): cargá el precio de cierre de un día y queda guardado para valuar ese día hacia atrás. Los Portfolios que importes ya guardan sus precios solos."
       >
         <FormularioCierreManual accion={guardarCierreManual} />
+        <ListaCierresManuales cierres={cierresManuales} />
       </SeccionCarga>
 
       <SeccionCarga

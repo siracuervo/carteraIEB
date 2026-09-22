@@ -13,7 +13,7 @@ function parseISO(iso) {
   return new Date(y, m - 1, d);
 }
 
-export default function InputFechaCalendario({ name = "fecha", required, value: valueProp, defaultValue, onChange }) {
+export default function InputFechaCalendario({ name = "fecha", required, value: valueProp, defaultValue, onChange, min, max }) {
   const [interno, setInterno] = useState(() => valueProp ?? defaultValue ?? "");
   const valor = valueProp !== undefined ? valueProp : interno;
   const [abierto, setAbierto] = useState(false);
@@ -43,6 +43,8 @@ export default function InputFechaCalendario({ name = "fecha", required, value: 
   }, [mesVista]);
 
   const hoyISO = aISO(new Date());
+  const minISO = min && /^\d{4}-\d{2}-\d{2}$/.test(min) ? min : null;
+  const maxISO = max && /^\d{4}-\d{2}-\d{2}$/.test(max) ? max : hoyISO;
 
   return (
     <div className="relative">
@@ -58,17 +60,45 @@ export default function InputFechaCalendario({ name = "fecha", required, value: 
       </button>
       {abierto && (
         <div
-          className="absolute z-10 mt-1 max-h-[320px] overflow-y-auto rounded-lg border bg-white p-2 shadow-lg"
-          style={{ borderColor: "var(--border)", background: "var(--surface-1)", minWidth: 260, maxWidth: "90vw" }}
+          className="absolute z-20 mt-1 max-h-[380px] overflow-y-auto rounded-lg border bg-white p-3 shadow-xl"
+          style={{ borderColor: "var(--border)", background: "var(--surface-1)", minWidth: 300, maxWidth: "90vw" }}
         >
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" onClick={() => setMesVista(new Date(mesVista.getFullYear(), mesVista.getMonth() - 1, 1))} className="rounded px-2 py-1 text-sm hover:bg-black/5" aria-label="Mes anterior">‹</button>
-            <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{tituloMes}</span>
-            <button type="button" onClick={() => setMesVista(new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 1))} className="rounded px-2 py-1 text-sm hover:bg-black/5" aria-label="Mes siguiente">›</button>
+            {(() => {
+              const hoy = new Date();
+              const mesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+              const maxMes = parseISO(maxISO) ? new Date(parseISO(maxISO).getFullYear(), parseISO(maxISO).getMonth(), 1) : mesActual;
+              const minMes = minISO ? new Date(parseISO(minISO).getFullYear(), parseISO(minISO).getMonth(), 1) : null;
+              const esMesFuturo = mesVista >= maxMes;
+              const esMesPasado = minMes && mesVista <= minMes;
+              return (
+                <>
+                  <button
+                    type="button"
+                    disabled={esMesPasado}
+                    onClick={() => setMesVista(new Date(mesVista.getFullYear(), mesVista.getMonth() - 1, 1))}
+                    className={`rounded px-2 py-1 text-sm ${esMesPasado ? "cursor-not-allowed opacity-30" : "hover:bg-black/5"}`}
+                    aria-label="Mes anterior"
+                  >
+                    ‹
+                  </button>
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{tituloMes}</span>
+                  <button
+                    type="button"
+                    disabled={esMesFuturo}
+                    onClick={() => setMesVista(new Date(mesVista.getFullYear(), mesVista.getMonth() + 1, 1))}
+                    className={`rounded px-2 py-1 text-sm ${esMesFuturo ? "cursor-not-allowed opacity-30" : "hover:bg-black/5"}`}
+                    aria-label="Mes siguiente"
+                  >
+                    ›
+                  </button>
+                </>
+              );
+            })()}
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-xs" style={{ color: "var(--text-muted)" }}>
-            {DIAS_SEMANA.map((d) => (
-              <span key={d} className="py-1 font-medium">{d}</span>
+            {DIAS_SEMANA.map((d, i) => (
+              <span key={`${d}-${i}`} className="py-1 font-medium">{d}</span>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1">
@@ -77,22 +107,29 @@ export default function InputFechaCalendario({ name = "fecha", required, value: 
               const iso = aISO(d);
               const esSeleccionado = iso === valor;
               const esHoy = iso === hoyISO;
+              const esFuturo = iso > maxISO;
+              const esAntesMin = minISO ? iso < minISO : false;
+              const deshabilitado = esFuturo || esAntesMin;
               return (
                 <button
                   key={iso}
                   type="button"
+                  disabled={deshabilitado}
                   onClick={() => {
+                    if (deshabilitado) return;
                     setValor(iso);
                     setMesVista(new Date(d.getFullYear(), d.getMonth(), 1));
                     setAbierto(false);
                   }}
-                  className="rounded-full py-1.5 text-xs font-medium"
+                  className={`rounded-full py-1.5 text-xs font-medium ${deshabilitado ? "cursor-not-allowed opacity-30" : ""}`}
                   style={
                     esSeleccionado
                       ? { background: "var(--marca)", color: "#fff" }
                       : esHoy
                         ? { background: "var(--marca-suave)", color: "var(--marca)", boxShadow: "inset 0 0 0 1px var(--marca)" }
-                        : { color: "var(--text-primary)" }
+                        : deshabilitado
+                          ? { color: "var(--text-muted)" }
+                          : { color: "var(--text-primary)" }
                   }
                 >
                   {d.getDate()}
