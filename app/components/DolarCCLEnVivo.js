@@ -5,6 +5,7 @@ import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
 const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+const formatoFechaCorta = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit" });
 const formatoHora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
 export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
@@ -53,8 +54,11 @@ export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
       <span className="text-[10px] font-extrabold tracking-wide whitespace-nowrap sm:text-sm" style={{ color: "var(--marca)" }}>
         ÚLTIMA ACTUALIZACIÓN
       </span>
-      <span className="text-xs font-bold tabular-nums whitespace-nowrap sm:text-base" style={{ color: "var(--marca)" }}>
+      <span className="hidden text-xs font-bold tabular-nums whitespace-nowrap sm:inline sm:text-base" style={{ color: "var(--marca)" }}>
         {formatoFecha.format(ts)} · {formatoHora.format(ts)}
+      </span>
+      <span className="text-xs font-bold tabular-nums whitespace-nowrap sm:hidden" style={{ color: "var(--marca)" }}>
+        {formatoFechaCorta.format(ts)} · {formatoHora.format(ts)}
       </span>
     </span>
   ) : null;
