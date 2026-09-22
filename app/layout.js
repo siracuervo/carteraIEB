@@ -3,6 +3,7 @@ import NavTabs from "./components/NavTabs";
 import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
 import BotonActualizarTodo from "./components/BotonActualizarTodo";
 import BotonPrivacidad from "./components/BotonPrivacidad";
+import RegistroSW from "./components/RegistroSW";
 import { ProveedorPrivacidad } from "./components/PrivacidadContext";
 import "./globals.css";
 
@@ -19,11 +20,16 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Siracartera",
   description: "Análisis de portafolio personal a partir de exports de IEB",
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-192.png",
+  },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#4a3aa7",
 };
 
 export default function RootLayout({ children }) {
@@ -33,6 +39,7 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <RegistroSW />
         <ProveedorPrivacidad>
           <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
