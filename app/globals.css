@@ -107,3 +107,31 @@ body {
     overflow-x: clip;
   }
 }
+
+/*
+ * Privacidad: los valores sensibles llevan siempre ambas versiones en el DOM
+ * (real + máscara) y se alternan por clase en <html>. Así el ojito no
+ * re-renderiza nada: el cambio es instantáneo y sin saltos de layout (lo real
+ * queda oculto sosteniendo el espacio, la máscara va superpuesta).
+ */
+.vs {
+  position: relative;
+}
+.vs > .vs-mask {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+html.priv-todo .vs > .vs-real,
+html.priv-total .vs[data-ambito="total"] > .vs-real {
+  visibility: hidden;
+}
+html.priv-todo .vs > .vs-mask,
+html.priv-total .vs[data-ambito="total"] > .vs-mask {
+  display: flex;
+}

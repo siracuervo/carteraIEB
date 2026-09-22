@@ -7,6 +7,12 @@ const CLAVE_LOCALSTORAGE_TOTAL = "iebCarteraOcultoTotal";
 
 const PrivacidadContext = createContext({ oculto: false, alternar: () => {}, ocultoTotal: false, alternarTotal: () => {} });
 
+function aplicarClases(todo, total) {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.toggle("priv-todo", todo);
+  document.documentElement.classList.toggle("priv-total", total);
+}
+
 export function ProveedorPrivacidad({ children }) {
   const [oculto, setOculto] = useState(false);
   const [ocultoTotal, setOcultoTotal] = useState(false);
@@ -16,8 +22,11 @@ export function ProveedorPrivacidad({ children }) {
     // preferencia guardada una vez montado en el cliente.
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOculto(localStorage.getItem(CLAVE_LOCALSTORAGE) === "1");
-      setOcultoTotal(localStorage.getItem(CLAVE_LOCALSTORAGE_TOTAL) === "1");
+      const todo = localStorage.getItem(CLAVE_LOCALSTORAGE) === "1";
+      const total = localStorage.getItem(CLAVE_LOCALSTORAGE_TOTAL) === "1";
+      setOculto(todo);
+      setOcultoTotal(total);
+      aplicarClases(todo, total);
     } catch {
       // localStorage puede no estar disponible (ej. modo privado del navegador); no pasa nada
     }
@@ -31,6 +40,7 @@ export function ProveedorPrivacidad({ children }) {
       } catch {
         // ver comentario arriba
       }
+      aplicarClases(nuevo, ocultoTotal);
       return nuevo;
     });
   }
@@ -43,6 +53,7 @@ export function ProveedorPrivacidad({ children }) {
       } catch {
         // ver comentario arriba
       }
+      aplicarClases(oculto, nuevo);
       return nuevo;
     });
   }

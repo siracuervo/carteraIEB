@@ -1,5 +1,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import Script from "next/script";
 import NavTabs from "./components/NavTabs";
 import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
 import BotonActualizarTodo from "./components/BotonActualizarTodo";
@@ -19,13 +20,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "SIRACARTERA",
+  title: "Siracartera",
   description: "Análisis de portafolio personal a partir de exports de IEB",
-  applicationName: "SIRACARTERA",
+  applicationName: "Siracartera",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "SIRACARTERA",
+    title: "Siracartera",
   },
   icons: {
     icon: "/icons/icon-192.png",
@@ -53,6 +54,10 @@ export default function RootLayout({ children }) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <Script
+        id="privacidad-inicial"
+        strategy="beforeInteractive"
+      >{`try{var d=document.documentElement;if(localStorage.getItem('iebCarteraOculto')==='1')d.classList.add('priv-todo');if(localStorage.getItem('iebCarteraOcultoTotal')==='1')d.classList.add('priv-total');}catch(e){}`}</Script>
       <body className="min-h-full flex flex-col">
         <RegistroSW />
         <ProveedorPrivacidad>
@@ -60,7 +65,7 @@ export default function RootLayout({ children }) {
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:hidden">
                 <Link href="/" className="shrink-0 justify-self-start text-sm font-bold tracking-wide hover:opacity-80" style={{ color: "var(--marca)" }}>
-                  SIRACARTERA
+                  Siracartera
                 </Link>
                 <div className="flex min-w-0 justify-center">
                   <DolarCCLEnVivo parte="actualizacion" />
@@ -78,7 +83,10 @@ export default function RootLayout({ children }) {
                   <BotonPrivacidad />
                 </div>
               </div>
-              <div className="hidden sm:block">
+              <div className="hidden items-center gap-6 sm:flex">
+                <Link href="/" className="shrink-0 text-sm font-bold tracking-wide hover:opacity-80" style={{ color: "var(--marca)" }}>
+                  Siracartera
+                </Link>
                 <NavTabs />
               </div>
               <div className="ml-auto hidden items-center gap-2 sm:flex sm:gap-3">
