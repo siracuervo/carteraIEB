@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 // "Histórico" está oculta de momento (a pedido, no borrada) — para volver a
 // mostrarla, descomentar esta línea.
 const TABS = [
-  { href: "/", label: "Portafolio" },
   { href: "/trades", label: "Trades" },
   { href: "/movimientos", label: "Movimientos" },
   { href: "/proyeccion", label: "Proyección" },

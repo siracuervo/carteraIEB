@@ -1,8 +1,8 @@
 export default function manifest() {
   return {
     id: "/",
-    name: "Siracartera",
-    short_name: "Siracartera",
+    name: "SIRACARTERA",
+    short_name: "SIRACARTERA",
     description: "Análisis de portafolio personal a partir de exports de IEB",
     start_url: "/",
     scope: "/",

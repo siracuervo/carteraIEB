@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
 :root {
+  /* La página maneja el color scheme por sí misma: así Samsung Internet (y
+     Chrome) con "Sitios oscuros"/auto-dark NO fuerzan su inversión encima
+     del modo oscuro nativo de la app. */
+  color-scheme: light;
+
   --background: #f9f9f7;
   --foreground: #0b0b0b;
 
@@ -38,6 +43,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
+
     --background: #0d0d0d;
     --foreground: #ffffff;
 

@@ -1,9 +1,9 @@
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import NavTabs from "./components/NavTabs";
 import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
 import BotonActualizarTodo from "./components/BotonActualizarTodo";
 import BotonPrivacidad from "./components/BotonPrivacidad";
-import BotonInstalarPWA from "./components/BotonInstalarPWA";
 import RegistroSW from "./components/RegistroSW";
 import { ProveedorPrivacidad } from "./components/PrivacidadContext";
 import "./globals.css";
@@ -19,24 +19,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Siracartera",
+  title: "SIRACARTERA",
   description: "Análisis de portafolio personal a partir de exports de IEB",
-  applicationName: "Siracartera",
+  applicationName: "SIRACARTERA",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Siracartera",
+    title: "SIRACARTERA",
   },
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
+  },
+  other: {
+    // Evita el "flash de contenido oscurecido" y le indica a Samsung Internet /
+    // Chrome que la app ya implementa su propio modo oscuro (no forzar encima).
+    "color-scheme": "light dark",
   },
 };
 
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#4a3aa7",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#4a3aa7" },
+    { media: "(prefers-color-scheme: dark)", color: "#9085e9" },
+  ],
 };
 
 export default function RootLayout({ children }) {
@@ -51,9 +59,9 @@ export default function RootLayout({ children }) {
           <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:hidden">
-                <span className="shrink-0 justify-self-start text-sm font-bold" style={{ color: "var(--marca)" }}>
-                  Siracartera
-                </span>
+                <Link href="/" className="shrink-0 justify-self-start text-sm font-bold tracking-wide hover:opacity-80" style={{ color: "var(--marca)" }}>
+                  SIRACARTERA
+                </Link>
                 <div className="flex min-w-0 justify-center">
                   <DolarCCLEnVivo parte="actualizacion" />
                 </div>
@@ -66,7 +74,6 @@ export default function RootLayout({ children }) {
                   <NavTabs />
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <BotonInstalarPWA />
                   <BotonActualizarTodo />
                   <BotonPrivacidad />
                 </div>
@@ -78,7 +85,6 @@ export default function RootLayout({ children }) {
                 <BotonPrivacidad />
                 <DolarCCLEnVivo parte="ccl" />
                 <BotonActualizarTodo />
-                <BotonInstalarPWA />
                 <DolarCCLEnVivo parte="actualizacion" />
               </div>
             </div>

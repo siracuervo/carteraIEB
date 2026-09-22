@@ -25,7 +25,7 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
         <div className="col-span-1 flex h-full flex-col gap-3 sm:col-span-2 lg:col-span-1">
           <div className={`${CLASE_TARJETA} flex-1 p-2 sm:p-3 lg:min-w-56`} style={{ borderColor: "var(--marca)", background: "var(--marca-suave)" }}>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <div className="text-sm font-semibold" style={{ color: "var(--marca)" }}>Valor de portafolio</div>
+              <div className="text-sm font-semibold" style={{ color: "var(--marca)" }}>Valor de Portafolio</div>
               <BotonPrivacidadTotal />
               <div className="text-xs font-semibold tabular-nums sm:text-sm" style={{ color: "var(--text-primary)" }}>{hoy}</div>
             </div>
