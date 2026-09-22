@@ -6,6 +6,14 @@ import { NextResponse } from "next/server";
  * configuradas (desarrollo local), deja pasar todo.
  */
 export function proxy(request) {
+  // El cron de Vercel guarda los cierres diarios sin sesión: se autentica con
+  // su propio secret (header `Authorization: Bearer <CRON_SECRET>`).
+  if (request.nextUrl.pathname === "/api/cron/cierres" && process.env.CRON_SECRET) {
+    if (request.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.next();
+    }
+  }
+
   const usuario = process.env.AUTH_USER;
   const clave = process.env.AUTH_PASS;
   if (!usuario || !clave) return NextResponse.next();

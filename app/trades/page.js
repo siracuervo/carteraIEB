@@ -6,7 +6,6 @@ import { SLEEVES } from "@/lib/sleeves";
 import { TICKERS_NO_MERCADO } from "@/lib/clasificacion";
 import TablaTrades from "@/app/components/TablaTrades";
 import FiltroFechasTrades from "@/app/components/FiltroFechasTrades";
-import AutoRefreshTrades from "@/app/components/AutoRefreshTrades";
 import ValorSensible from "@/app/components/ValorSensible";
 
 export const dynamic = "force-dynamic";
@@ -92,7 +91,6 @@ export default async function TradesPage({ searchParams }) {
 
   return (
     <main className="mx-auto max-w-6xl space-y-4 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <AutoRefreshTrades intervaloMs={30_000} />
       <div>
         <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
           Trades

@@ -17,8 +17,6 @@ import { aISO } from "@/lib/accesosRapidosFecha";
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoFechaDia = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "2-digit", month: "long" });
 
-const REFRESCO_PRECIOS_MS = 60_000;
-
 function resColor(valor) {
   return valor == null || valor === 0 ? "var(--text-muted)" : valor > 0 ? "var(--good)" : "var(--bad)";
 }
@@ -97,10 +95,8 @@ export default function SelectorVista({ tenencias, resultadosDia, diasOperados, 
     window.addEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
 
     refrescar();
-    const id = setInterval(refrescar, REFRESCO_PRECIOS_MS);
     return () => {
       activo = false;
-      clearInterval(id);
       window.removeEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
     };
   }, [tickersRes, esUltimoRes]);

@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 2 });
-const formatoHora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const REFRESCO_MS = 60_000;
+const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+const formatoHora = new Intl.DateTimeFormat("es-AR", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 
 export default function DolarCCLEnVivo({ referencia }) {
   const [ccl, setCcl] = useState(null);
@@ -28,16 +28,15 @@ export default function DolarCCLEnVivo({ referencia }) {
     }
     refrescarRef.current = refrescar;
 
+    // Sin refresco automático: solo al cargar y cuando se toca "Actualizar"
     function alActualizarGlobal() {
       refrescarRef.current?.();
     }
     window.addEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
 
     refrescar();
-    const id = setInterval(refrescar, REFRESCO_MS);
     return () => {
       activo = false;
-      clearInterval(id);
       window.removeEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
     };
   }, []);
@@ -46,10 +45,24 @@ export default function DolarCCLEnVivo({ referencia }) {
   const enVivo = ccl != null;
 
   return (
-    <div className="flex items-center gap-1.5 whitespace-nowrap">
-      <span className="hidden text-xs sm:inline" style={{ color: "var(--text-muted)" }}>Dólar CCL</span>
+    <div className="relative flex w-full items-center gap-1.5 whitespace-nowrap">
+      {ts && (
+        <span
+          className="mx-auto flex min-w-0 flex-col items-center gap-0 rounded-lg border px-2 py-0.5 text-center sm:order-3 sm:mx-0 sm:flex-row sm:items-center sm:gap-3 sm:px-3 sm:py-1 sm:text-left"
+          style={{ borderColor: "var(--marca)", background: "var(--marca-suave)" }}
+          title="Momento de la última actualización de precios"
+        >
+          <span className="text-[10px] font-extrabold tracking-wide whitespace-nowrap sm:text-sm" style={{ color: "var(--marca)" }}>
+            ÚLTIMA ACTUALIZACIÓN
+          </span>
+          <span className="text-xs font-bold tabular-nums whitespace-nowrap sm:text-base" style={{ color: "var(--marca)" }}>
+            {formatoFecha.format(ts)} · {formatoHora.format(ts)}
+          </span>
+        </span>
+      )}
+      <span className="hidden text-xs sm:order-1 sm:inline" style={{ color: "var(--text-muted)" }}>Dólar CCL</span>
       <span
-        className="flex items-center gap-1.5 text-sm font-semibold tabular-nums"
+        className="absolute right-0 flex items-center gap-1.5 text-sm font-semibold tabular-nums sm:static sm:order-2 sm:ml-0"
         style={{ color: enVivo ? "var(--text-primary)" : "var(--text-muted)" }}
         title="Dólar CCL en tiempo real"
       >
@@ -62,11 +75,6 @@ export default function DolarCCLEnVivo({ referencia }) {
           </>
         )}
       </span>
-      {ts && (
-        <span className="hidden text-xs tabular-nums md:inline" style={{ color: "var(--text-muted)" }}>
-          {formatoHora.format(ts)}
-        </span>
-      )}
     </div>
   );
 }

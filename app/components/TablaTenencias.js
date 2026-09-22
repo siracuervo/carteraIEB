@@ -20,8 +20,6 @@ const formatoPrecioARSsinDecimales = new Intl.NumberFormat("es-AR", { style: "cu
 const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
 const formatoPct = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1, signDisplay: "exceptZero" });
 
-const REFRESCO_PRECIOS_MS = 60_000;
-
 function formatoMoneda(valor, divisa) {
   if (valor == null) return "—";
   return divisa === "USD" ? formatoUSD.format(valor) : formatoARS.format(valor);
@@ -210,16 +208,15 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
     }
     refrescarRef.current = refrescar;
 
+    // Sin refresco automático: solo al cargar y cuando se toca "Actualizar"
     function alActualizarGlobal() {
       refrescarRef.current?.();
     }
     window.addEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
 
     refrescar();
-    const id = setInterval(refrescar, REFRESCO_PRECIOS_MS);
     return () => {
       activo = false;
-      clearInterval(id);
       window.removeEventListener(EVENTO_ACTUALIZAR, alActualizarGlobal);
     };
   }, [tickers, modo, esHistorico]);

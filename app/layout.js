@@ -40,26 +40,26 @@ export default function RootLayout({ children }) {
                 <span className="shrink-0 text-sm font-bold" style={{ color: "var(--marca)" }}>
                   Cartera IEB
                 </span>
-                <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:hidden">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:hidden">
                   <DolarCCLEnVivo />
-                  <BotonPrivacidad />
                 </div>
               </div>
               <div className="flex min-w-0 items-center gap-2 sm:hidden">
                 <div className="min-w-0 flex-1">
                   <NavTabs />
                 </div>
-                <div className="flex shrink-0 items-center">
+                <div className="flex shrink-0 items-center gap-1.5">
                   <BotonActualizarTodo />
+                  <BotonPrivacidad />
                 </div>
               </div>
               <div className="hidden sm:block">
                 <NavTabs />
               </div>
               <div className="ml-auto hidden items-center gap-2 sm:flex sm:gap-3">
-                <DolarCCLEnVivo />
-                <BotonActualizarTodo />
                 <BotonPrivacidad />
+                <BotonActualizarTodo />
+                <DolarCCLEnVivo />
               </div>
             </div>
           </header>
