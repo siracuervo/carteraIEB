@@ -28,11 +28,15 @@ if (!archivos.length) {
 for (const nombre of archivos) {
   const contenido = await readFile(new URL(`./data/${nombre}`, import.meta.url), "utf-8");
   JSON.parse(contenido); // valida que sea JSON válido antes de subir
-  const res = await put(`datos/${nombre}`, contenido, {
-    access: "public",
-    contentType: "application/json",
-    token,
-  });
+  let res = null;
+  for (const access of ["public", "private"]) {
+    try {
+      res = await put(`datos/${nombre}`, contenido, { access, contentType: "application/json", token });
+      break;
+    } catch (err) {
+      if (access === "private" || !/private store|public access/i.test(err.message)) throw err;
+    }
+  }
   console.log("OK", nombre, "->", res.pathname);
 }
 
