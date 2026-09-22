@@ -13,7 +13,7 @@ export default function ValorSensible({ children, ambito = "todo" }) {
   const escondido = ambito === "total" ? oculto || ocultoTotal : oculto;
   if (!escondido) return children;
   return (
-    <span style={{ position: "relative", display: "inline-block", whiteSpace: "nowrap" }}>
+    <span style={{ position: "relative" }}>
       <span aria-hidden="true" style={{ visibility: "hidden" }}>
         {children}
       </span>
@@ -26,6 +26,8 @@ export default function ValorSensible({ children, ambito = "todo" }) {
           alignItems: "center",
           justifyContent: "center",
           letterSpacing: "0.05em",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
         }}
       >
         ••••••

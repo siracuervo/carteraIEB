@@ -3,6 +3,7 @@ import NavTabs from "./components/NavTabs";
 import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
 import BotonActualizarTodo from "./components/BotonActualizarTodo";
 import BotonPrivacidad from "./components/BotonPrivacidad";
+import BotonInstalarPWA from "./components/BotonInstalarPWA";
 import RegistroSW from "./components/RegistroSW";
 import { ProveedorPrivacidad } from "./components/PrivacidadContext";
 import "./globals.css";
@@ -20,6 +21,12 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: "Siracartera",
   description: "Análisis de portafolio personal a partir de exports de IEB",
+  applicationName: "Siracartera",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Siracartera",
+  },
   icons: {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
@@ -59,6 +66,7 @@ export default function RootLayout({ children }) {
                   <NavTabs />
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
+                  <BotonInstalarPWA />
                   <BotonActualizarTodo />
                   <BotonPrivacidad />
                 </div>
@@ -70,6 +78,7 @@ export default function RootLayout({ children }) {
                 <BotonPrivacidad />
                 <DolarCCLEnVivo parte="ccl" />
                 <BotonActualizarTodo />
+                <BotonInstalarPWA />
                 <DolarCCLEnVivo parte="actualizacion" />
               </div>
             </div>

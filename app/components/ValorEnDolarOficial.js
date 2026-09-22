@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import ValorSensible from "./ValorSensible";
 
 const formatoUSD = new Intl.NumberFormat("es-AR", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-const REFRESCO_MS = 60_000;
 
 export default function ValorEnDolarOficial({ valorARS }) {
   const [oficial, setOficial] = useState(null);
@@ -24,10 +23,8 @@ export default function ValorEnDolarOficial({ valorARS }) {
     }
 
     refrescar();
-    const id = setInterval(refrescar, REFRESCO_MS);
     return () => {
       activo = false;
-      clearInterval(id);
     };
   }, []);
 
