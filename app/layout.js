@@ -43,12 +43,15 @@ export default function RootLayout({ children }) {
         <ProveedorPrivacidad>
           <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
-              <div className="flex items-center gap-1.5">
-                <span className="shrink-0 text-sm font-bold" style={{ color: "var(--marca)" }}>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:hidden">
+                <span className="shrink-0 justify-self-start text-sm font-bold" style={{ color: "var(--marca)" }}>
                   Siracartera
                 </span>
-                <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:hidden">
-                  <DolarCCLEnVivo />
+                <div className="flex min-w-0 justify-center">
+                  <DolarCCLEnVivo parte="actualizacion" />
+                </div>
+                <div className="flex min-w-0 justify-end">
+                  <DolarCCLEnVivo parte="ccl" />
                 </div>
               </div>
               <div className="flex min-w-0 items-center gap-2 sm:hidden">

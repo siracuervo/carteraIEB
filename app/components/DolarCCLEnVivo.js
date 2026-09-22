@@ -47,7 +47,7 @@ export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
 
   const bloqueActualizacion = ts ? (
     <span
-      className="absolute top-1/2 left-1/2 flex min-w-0 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0 rounded-lg border px-2 py-0.5 text-center sm:static sm:mx-0 sm:translate-x-0 sm:translate-y-0 sm:flex-row sm:items-center sm:gap-3 sm:px-2.5 sm:py-1.5 sm:text-left"
+      className="flex min-w-0 flex-col items-center gap-0 rounded-lg border px-2 py-0.5 text-center sm:flex-row sm:items-center sm:gap-3 sm:px-2.5 sm:py-1.5 sm:text-left"
       style={{ borderColor: "var(--marca)", background: "var(--marca-suave)" }}
       title="Momento de la última actualización de precios"
     >
@@ -67,7 +67,7 @@ export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
     <>
       <span className="hidden text-xs sm:inline" style={{ color: "var(--text-muted)" }}>Dólar CCL</span>
       <span
-        className="absolute top-1/2 right-0 flex -translate-y-1/2 items-center gap-1.5 text-sm font-semibold tabular-nums sm:static sm:translate-y-0 sm:ml-0"
+        className="flex items-center gap-1.5 text-sm font-semibold tabular-nums"
         style={{ color: enVivo ? "var(--text-primary)" : "var(--text-muted)" }}
         title="Dólar CCL en tiempo real"
       >
@@ -84,13 +84,13 @@ export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
   );
 
   if (parte === "ccl") {
-    return <div className="flex items-center gap-1.5 whitespace-nowrap">{bloqueCCL}</div>;
+    return <div className="flex min-w-0 items-center justify-end gap-1.5 whitespace-nowrap">{bloqueCCL}</div>;
   }
   if (parte === "actualizacion") {
-    return <div className="flex items-center gap-1.5 whitespace-nowrap">{bloqueActualizacion}</div>;
+    return <div className="flex min-w-0 items-center justify-center gap-1.5 whitespace-nowrap">{bloqueActualizacion}</div>;
   }
   return (
-    <div className="relative flex min-h-[46px] w-full items-center gap-1.5 whitespace-nowrap sm:min-h-0">
+    <div className="flex w-full items-center justify-between gap-1.5 whitespace-nowrap">
       {bloqueActualizacion}
       {bloqueCCL}
     </div>
