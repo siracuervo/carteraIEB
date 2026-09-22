@@ -62,7 +62,7 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
   if (!datos.length) {
     return (
       <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-        <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución de la cartera</h3>
+        <h3 className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>Evolución del portafolio</h3>
         <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Todavía no hay Portfolios importados.</p>
       </div>
     );
@@ -90,7 +90,7 @@ export default function GraficoEvolucionPatrimonio({ serie }) {
     <div className="flex h-full min-h-0 flex-col rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <h3 className="min-w-0 flex-1 text-xs font-medium sm:text-sm" style={{ color: "var(--text-primary)" }}>
-          Evolución de la cartera ({rango === "todo" ? "todo el historial" : `${rango} días hábiles`})
+          Evolución del portafolio ({rango === "todo" ? "todo el historial" : `${rango} días hábiles`})
         </h3>
         <div className="flex gap-1">
           {RANGOS.map((r) => (

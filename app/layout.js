@@ -17,8 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Cartera IEB",
-  description: "Análisis de cartera personal a partir de exports de IEB",
+  title: "Siracartera",
+  description: "Análisis de portafolio personal a partir de exports de IEB",
 };
 
 export const viewport = {
@@ -38,7 +38,7 @@ export default function RootLayout({ children }) {
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
               <div className="flex items-center gap-1.5">
                 <span className="shrink-0 text-sm font-bold" style={{ color: "var(--marca)" }}>
-                  Cartera IEB
+                  Siracartera
                 </span>
                 <div className="flex min-w-0 flex-1 items-center gap-1.5 sm:hidden">
                   <DolarCCLEnVivo />

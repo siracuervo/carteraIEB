@@ -214,7 +214,7 @@ export default async function ActivoPage({ params, searchParams }) {
   return (
     <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <Link href={esPosicionCerrada ? "/cerradas" : "/"} className="text-sm" style={{ color: "var(--text-muted)" }}>
-        ← Volver a {esPosicionCerrada ? "ventas realizadas" : "la cartera"}
+        ← Volver a {esPosicionCerrada ? "ventas realizadas" : "el portafolio"}
       </Link>
 
       <div className="flex items-center gap-3">

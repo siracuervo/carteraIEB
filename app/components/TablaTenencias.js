@@ -461,7 +461,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               <ValorSensible ambito="total">{formatoMoneda(d.valorMostrado, d.monedaValor)}</ValorSensible>
             </div>
             <div className="text-[11px] tabular-nums" style={{ color: "var(--text-muted)" }}>
-              {d.pctCartera == null ? "—" : formatoPct.format(d.pctCartera).replace(/^\+/, "")} de la cartera
+              {d.pctCartera == null ? "—" : formatoPct.format(d.pctCartera).replace(/^\+/, "")} del portafolio
             </div>
           </div>
         </div>
@@ -594,7 +594,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               <ColumnaConAncho columna="valor" ancho={anchos.valor} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5">
                 <BotonOrden columna="valor" ordenActual={orden} onClick={alHacerClick}>Posición {modoEfectivo === "usa" ? "(USD)" : "(ARS)"}</BotonOrden>
               </ColumnaConAncho>
-              <ColumnaConAncho columna="pct" ancho={anchos.pct} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5" title="% de tu cartera total">
+              <ColumnaConAncho columna="pct" ancho={anchos.pct} onIniciarArrastre={iniciarArrastre} className="px-2 py-1.5" title="% de tu portafolio total">
                 <BotonOrden columna="pct" ordenActual={orden} onClick={alHacerClick}>
                   <IconoCartera size={13} />
                   <span>%</span>

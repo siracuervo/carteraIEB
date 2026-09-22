@@ -94,7 +94,7 @@ export default async function MovimientosPage() {
         </h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
           Acá se cargan los movimientos (compras, ventas, dividendos) de tus activos. Una vez importados, aparecen
-          en la página de cada activo y alimentan el historial de la cartera.
+          en la página de cada activo y alimentan el historial del portafolio.
         </p>
       </div>
 

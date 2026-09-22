@@ -349,6 +349,104 @@ function CeldaSleeve({ dato, ingresos }) {
   );
 }
 
+function FilaIngreso({ ing, pendiente, onGuardar, onEliminar }) {
+  const [editando, setEditando] = useState(false);
+  const [fecha, setFecha] = useState(ing.fecha || "");
+  const [monto, setMonto] = useState(ing.monto != null ? String(ing.monto) : "");
+  const [destino, setDestino] = useState(ing.destino || "trading");
+  const [nota, setNota] = useState(ing.nota || "");
+  const estilo = {
+    borderColor: "var(--border)",
+    background: "var(--surface-1)",
+    color: "var(--text-primary)",
+  };
+
+  if (!editando) {
+    return (
+      <li className="flex items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)" }}>
+        <div className="min-w-0 flex-1">
+          <div className="break-words text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
+            {formatoARS.format(ing.monto)} → {ETIQUETA_SLEEVE[ing.destino] || ing.destino}
+          </div>
+          <div className="truncate text-xs" style={{ color: "var(--text-muted)" }}>
+            {ing.fecha ? formatoFechaLarga.format(fechaLocal(ing.fecha)) : "—"}{ing.nota ? ` · ${ing.nota}` : ""}
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={pendiente}
+          onClick={() => setEditando(true)}
+          className="shrink-0 cursor-pointer rounded-md border px-2 py-1 text-xs disabled:opacity-60"
+          style={{ borderColor: "var(--border)", color: "var(--text-muted)" }}
+        >
+          Editar
+        </button>
+        <button
+          type="button"
+          disabled={pendiente}
+          onClick={onEliminar}
+          className="shrink-0 cursor-pointer rounded-md border px-2 py-1 text-xs disabled:opacity-60"
+          style={{ borderColor: "var(--border)", color: "var(--bad)" }}
+        >
+          Eliminar
+        </button>
+      </li>
+    );
+  }
+
+  return (
+    <li className="rounded-lg border px-3 py-2" style={{ borderColor: "var(--marca)" }}>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Fecha
+          <input type="date" value={fecha} min={MIN_FECHA} max={MAX_FECHA} onChange={(e) => setFecha(e.target.value)} className="w-full min-w-0 rounded border px-2 py-1 text-sm" style={estilo} />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Monto (ARS)
+          <input type="number" min={0} step="any" value={monto} onChange={(e) => setMonto(e.target.value)} className="w-full min-w-0 rounded border px-2 py-1 text-sm tabular-nums" style={estilo} />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Destino
+          <select value={destino} onChange={(e) => setDestino(e.target.value)} className="w-full min-w-0 rounded border px-2 py-1 text-sm" style={estilo}>
+            {SLEEVES.map((s) => (
+              <option key={s.id} value={s.id}>{s.etiqueta}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+          Nota (opcional)
+          <input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={120} className="w-full min-w-0 rounded border px-2 py-1 text-sm" style={estilo} />
+        </label>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          disabled={pendiente}
+          onClick={() => onGuardar(ing.id, { fecha, monto, destino, nota }).then((ok) => { if (ok) setEditando(false); })}
+          className="rounded-md px-3 py-1 text-xs font-medium text-white disabled:opacity-60"
+          style={{ background: "var(--marca)" }}
+        >
+          {pendiente ? "Guardando…" : "Guardar"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setFecha(ing.fecha || "");
+            setMonto(ing.monto != null ? String(ing.monto) : "");
+            setDestino(ing.destino || "trading");
+            setNota(ing.nota || "");
+            setEditando(false);
+          }}
+          className="text-xs"
+          style={{ color: "var(--text-muted)" }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </li>
+  );
+}
+
 function NotaMesParcial({ indice, diaInicioMes, diasRestantes, habilesRestantes }) {
   if (indice !== 0 || !(diaInicioMes > 1)) return null;
   return (
@@ -484,6 +582,19 @@ export default function ProyeccionClient({ totalesIniciales, proyeccionInicial }
     );
   }
 
+  async function guardarIngresoEditado(id, payload) {
+    try {
+      await actualizarIngresoProyeccionAction({ id, ...payload });
+      setOk("Ingreso actualizado.");
+      setError(null);
+      router.refresh();
+      return true;
+    } catch (e) {
+      setError(e?.message || "Algo falló — probá de nuevo.");
+      return false;
+    }
+  }
+
   function agregarTraspaso() {
     const esPorcentaje = trModo === "porcentaje";
     correr(
@@ -523,7 +634,7 @@ export default function ProyeccionClient({ totalesIniciales, proyeccionInicial }
       <section className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
         <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Rendimiento mensual por estrategia</h2>
         <p className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>
-          Parte de tu cartera actual: Trading {formatoARS.format(totalesIniciales?.trading ?? 0)} · Largo plazo{" "}
+          Parte de tu portafolio actual: Trading {formatoARS.format(totalesIniciales?.trading ?? 0)} · Largo plazo{" "}
           {formatoARS.format(totalesIniciales?.largo ?? 0)} · Renta fija {formatoARS.format(totalesIniciales?.rentaFija ?? 0)}.
           La tabla arranca en {meses.length ? formatoFecha.format(fechaLocal(meses[0])) : "—"} (mes en curso, prorrateado desde hoy)
           y se recalcula al instante; guardá para que quede registrado. La renta fija rinde por días corridos;
@@ -729,25 +840,13 @@ export default function ProyeccionClient({ totalesIniciales, proyeccionInicial }
           </button>
           <ul className="mt-3 space-y-2">
             {ingresos.map((ing) => (
-              <li key={ing.id} className="flex items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: "var(--border)" }}>
-                <div className="min-w-0 flex-1">
-                  <div className="break-words text-sm font-medium tabular-nums" style={{ color: "var(--text-primary)" }}>
-                    {formatoARS.format(ing.monto)} → {ETIQUETA_SLEEVE[ing.destino] || ing.destino}
-                  </div>
-                  <div className="truncate text-xs" style={{ color: "var(--text-muted)" }}>
-                    {ing.fecha ? formatoFechaLarga.format(fechaLocal(ing.fecha)) : "—"}{ing.nota ? ` · ${ing.nota}` : ""}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  disabled={pendiente}
-                  onClick={() => correr(() => eliminarIngresoProyeccionAction(ing.id), null)}
-                  className="shrink-0 cursor-pointer rounded-md border px-2 py-1 text-xs disabled:opacity-60"
-                  style={{ borderColor: "var(--border)", color: "var(--bad)" }}
-                >
-                  Eliminar
-                </button>
-              </li>
+              <FilaIngreso
+                key={ing.id}
+                ing={ing}
+                pendiente={pendiente}
+                onGuardar={guardarIngresoEditado}
+                onEliminar={() => correr(() => eliminarIngresoProyeccionAction(ing.id), null)}
+              />
             ))}
             {!ingresos.length && (
               <li className="text-xs" style={{ color: "var(--text-muted)" }}>Todavía no agregaste ingresos.</li>

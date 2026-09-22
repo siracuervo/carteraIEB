@@ -11,7 +11,7 @@ export default async function ProyeccionPage() {
     return (
       <main className="mx-auto max-w-5xl px-4 py-8">
         <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>Proyección</h1>
-        <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Necesitás tener una cartera cargada para proyectar.</p>
+        <p className="mt-2 text-sm" style={{ color: "var(--text-muted)" }}>Necesitás tener un portafolio cargado para proyectar.</p>
       </main>
     );
   }
@@ -33,7 +33,7 @@ export default async function ProyeccionPage() {
       <div>
         <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>Proyección hasta julio 2027</h1>
         <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>
-          Jugá con rendimientos mensuales por estrategia y simulá ingresos y traspasos de ganancias. Parte de tu cartera actual ({new Date().toLocaleDateString("es-AR")}) y proyecta mes a mes hasta julio 2027.
+          Jugá con rendimientos mensuales por estrategia y simulá ingresos y traspasos de ganancias. Parte de tu portafolio actual ({new Date().toLocaleDateString("es-AR")}) y proyecta mes a mes hasta julio 2027.
         </p>
       </div>
       <ProyeccionClient totalesIniciales={totales} proyeccionInicial={proyeccion} />

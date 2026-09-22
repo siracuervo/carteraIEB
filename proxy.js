@@ -37,6 +37,6 @@ export function proxy(request) {
   if (valido) return NextResponse.next();
   return new Response("Acceso restringido.", {
     status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="Cartera IEB"' },
+    headers: { "WWW-Authenticate": 'Basic realm="Siracartera"' },
   });
 }

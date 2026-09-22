@@ -12,7 +12,7 @@ export async function GET() {
   return new Response(cuerpo, {
     headers: {
       "Content-Type": "application/json",
-      "Content-Disposition": `attachment; filename="respaldo-cartera-${hoy}.json"`,
+      "Content-Disposition": `attachment; filename="respaldo-portafolio-${hoy}.json"`,
     },
   });
 }

@@ -82,7 +82,7 @@ export function NovedadesCartera({ nuevasEnCartera }) {
 
   return (
     <div className="flex h-full flex-col rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-      <div className="text-sm" style={{ color: "var(--text-primary)" }}>Novedades de la cartera</div>
+      <div className="text-sm" style={{ color: "var(--text-primary)" }}>Novedades del portafolio</div>
       {!movimientos?.length ? (
         <p className="mt-3 text-sm" style={{ color: "var(--text-muted)" }}>
           {fechaAnterior
@@ -159,7 +159,7 @@ export default function DestacadosCartera({ tenencias, nuevasEnCartera }) {
         <div className="grid grid-cols-1 gap-3 p-4 pt-0 sm:grid-cols-2 lg:grid-cols-4">
       <div className="rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
         <FilaDestacada
-          etiqueta="Mayor posición de la cartera"
+          etiqueta="Mayor posición del portafolio"
           tenencia={mayorPeso}
           valor={mayorPeso?.pctCartera != null ? formatoPct.format(mayorPeso.pctCartera).replace(/^\+/, "") : "—"}
           detalle={mayorPeso?.valorActualARS != null ? formatoARS.format(mayorPeso.valorActualARS) : null}

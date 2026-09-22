@@ -20,7 +20,7 @@ function IconoOjoTachado() {
   );
 }
 
-/** Ojito que oculta solo el valor de la cartera y los valores por estrategia. */
+/** Ojito que oculta solo el valor del portafolio y los valores por estrategia. */
 export default function BotonPrivacidadTotal() {
   const { oculto, ocultoTotal, alternarTotal } = usePrivacidad();
   const activo = oculto || ocultoTotal;
@@ -28,7 +28,7 @@ export default function BotonPrivacidadTotal() {
     <button
       type="button"
       onClick={alternarTotal}
-      title={activo ? "Mostrar valor de cartera" : "Ocultar solo el valor de cartera y estrategias"}
+      title={activo ? "Mostrar valor de portafolio" : "Ocultar solo el valor de portafolio y estrategias"}
       className="cursor-pointer rounded-md p-1"
       style={{ color: activo ? "var(--marca)" : "var(--text-muted)" }}
     >
