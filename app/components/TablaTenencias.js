@@ -428,7 +428,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
             )}
           </td>
           <td className="px-2 py-1 align-middle tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>
-            <ValorSensible>{formatoMoneda(valorMostrado, monedaValor)}</ValorSensible>
+            <ValorSensible ambito="total">{formatoMoneda(valorMostrado, monedaValor)}</ValorSensible>
           </td>
           <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {pctCartera == null ? "—" : formatoPct.format(pctCartera).replace(/^\+/, "")}
@@ -458,7 +458,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
           )}
           <div className="ml-auto shrink-0 text-right">
             <div className="text-base font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
-              <ValorSensible>{formatoMoneda(d.valorMostrado, d.monedaValor)}</ValorSensible>
+              <ValorSensible ambito="total">{formatoMoneda(d.valorMostrado, d.monedaValor)}</ValorSensible>
             </div>
             <div className="text-[11px] tabular-nums" style={{ color: "var(--text-muted)" }}>
               {d.pctCartera == null ? "—" : formatoPct.format(d.pctCartera).replace(/^\+/, "")} de la cartera
@@ -626,7 +626,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
                         </span>
                         {totalGrupo > 0 && (
                           <span className="text-base sm:text-xl font-extrabold tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                            <ValorSensible>{formatoMoneda(totalGrupoMostrado, modoEfectivo === "usa" ? "USD" : "ARS")}</ValorSensible>
+                            <ValorSensible ambito="total">{formatoMoneda(totalGrupoMostrado, modoEfectivo === "usa" ? "USD" : "ARS")}</ValorSensible>
                           </span>
                         )}
                       </button>
@@ -661,7 +661,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
                 </span>
                 {totalGrupo > 0 && (
                   <span className="ml-auto text-base font-extrabold tabular-nums" style={{ color: "var(--text-secondary)" }}>
-                    <ValorSensible>{formatoMoneda(totalGrupo, modoEfectivo === "usa" ? "USD" : "ARS")}</ValorSensible>
+                    <ValorSensible ambito="total">{formatoMoneda(totalGrupo, modoEfectivo === "usa" ? "USD" : "ARS")}</ValorSensible>
                   </span>
                 )}
               </button>
