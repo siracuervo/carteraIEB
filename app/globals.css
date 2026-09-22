@@ -96,21 +96,30 @@ body {
   border-left: 1px solid var(--border);
 }
 
-/* Micro-interacciones de botones: levantan al hover (mouse) y se hunden al
- * presionar (mouse o dedo). Solo donde hay hover real y nunca en deshabilitados. */
-button {
+/* Micro-interacciones: al hover (mouse) crecen y se aclaran; al presionar
+ * (mouse o dedo) se hunden manteniendo el aclarado. Solo donde hay hover
+ * real y nunca en deshabilitados. La marca usa la clase .btn-anim. */
+button:not(:disabled),
+a.btn-anim {
   -webkit-tap-highlight-color: transparent;
-  transition: transform 0.12s ease, filter 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    filter 0.12s ease,
+    color 0.12s ease,
+    background-color 0.12s ease,
+    border-color 0.12s ease;
 }
 @media (hover: hover) {
-  button:not(:disabled):hover {
-    transform: translateY(-1px);
-    filter: brightness(1.12);
+  button:not(:disabled):hover,
+  a.btn-anim:hover {
+    transform: scale(1.05);
+    filter: brightness(1.15);
   }
 }
-button:not(:disabled):active {
+button:not(:disabled):active,
+a.btn-anim:active {
   transform: scale(0.96);
-  filter: brightness(0.94);
+  filter: brightness(1.15);
 }
 
 /* Móvil: los controles de fecha y los selects nunca fuerzan scroll horizontal,

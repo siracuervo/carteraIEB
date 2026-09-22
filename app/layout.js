@@ -64,7 +64,7 @@ export default function RootLayout({ children }) {
           <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:hidden">
-                <Link href="/" className="shrink-0 justify-self-start text-sm font-bold tracking-wide hover:opacity-80" style={{ color: "var(--marca)" }}>
+                <Link href="/" className="btn-anim shrink-0 justify-self-start text-sm font-bold tracking-wide" style={{ color: "var(--marca)" }}>
                   Siracartera
                 </Link>
                 <div className="flex min-w-0 justify-center">
@@ -84,7 +84,7 @@ export default function RootLayout({ children }) {
                 </div>
               </div>
               <div className="hidden items-center gap-6 sm:flex">
-                <Link href="/" className="shrink-0 text-sm font-bold tracking-wide hover:opacity-80" style={{ color: "var(--marca)" }}>
+                <Link href="/" className="btn-anim shrink-0 text-sm font-bold tracking-wide" style={{ color: "var(--marca)" }}>
                   Siracartera
                 </Link>
                 <NavTabs />
