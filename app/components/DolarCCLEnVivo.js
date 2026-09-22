@@ -47,14 +47,14 @@ export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
 
   const bloqueActualizacion = ts ? (
     <span
-      className="absolute top-1/2 left-1/2 flex min-w-0 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0 rounded-lg border px-2 py-0.5 text-center sm:static sm:mx-0 sm:translate-x-0 sm:translate-y-0 sm:flex-row sm:items-center sm:gap-3 sm:px-3 sm:py-1 sm:text-left"
+      className="absolute top-1/2 left-1/2 flex min-w-0 -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-0 rounded-lg border px-2 py-0.5 text-center sm:static sm:mx-0 sm:translate-x-0 sm:translate-y-0 sm:flex-row sm:items-center sm:gap-3 sm:px-2.5 sm:py-1.5 sm:text-left"
       style={{ borderColor: "var(--marca)", background: "var(--marca-suave)" }}
       title="Momento de la última actualización de precios"
     >
-      <span className="text-[10px] font-extrabold tracking-wide whitespace-nowrap sm:text-sm" style={{ color: "var(--marca)" }}>
+      <span className="text-[10px] font-extrabold tracking-wide whitespace-nowrap sm:text-xs" style={{ color: "var(--marca)" }}>
         ÚLTIMA ACTUALIZACIÓN
       </span>
-      <span className="hidden text-xs font-bold tabular-nums whitespace-nowrap sm:inline sm:text-base" style={{ color: "var(--marca)" }}>
+      <span className="hidden text-xs font-bold tabular-nums whitespace-nowrap sm:inline" style={{ color: "var(--marca)" }}>
         {formatoFecha.format(ts)} · {formatoHora.format(ts)}
       </span>
       <span className="text-xs font-bold tabular-nums whitespace-nowrap sm:hidden" style={{ color: "var(--marca)" }}>
