@@ -65,10 +65,7 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
           </div>
 
           <div className={`${CLASE_TARJETA} flex-1 p-2 sm:p-3 lg:min-w-56`} style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Valor de Trading</div>
-              <div className="text-xs font-semibold tabular-nums sm:text-sm" style={{ color: "var(--text-primary)" }}>{hoy}</div>
-            </div>
+            <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Valor de Trading</div>
             <div className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl" style={{ color: "var(--text-primary)" }}>
               <ValorSensible ambito="total">{valorTradingARS != null ? formatoARS.format(valorTradingARS) : "—"}</ValorSensible>
             </div>
@@ -76,16 +73,11 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
               <ValorEnDolarOficial valorARS={valorTradingARS} />
             </ValorSensible>
             {valorRentaFijaARS != null && (
-              <div className="mt-3 pt-2 border-t" style={{ borderColor: "var(--border)" }}>
-                <div className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>Renta fija</div>
-                <div className="mt-0.5 text-lg font-semibold tabular-nums sm:text-xl" style={{ color: "var(--text-primary)" }}>
+              <div className="mt-2 flex items-baseline justify-between gap-2 border-t pt-2" style={{ borderColor: "var(--border)" }}>
+                <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>Renta fija</span>
+                <span className="text-sm font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
                   <ValorSensible ambito="total">{formatoARS.format(valorRentaFijaARS)}</ValorSensible>
-                </div>
-                <div className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  <ValorSensible ambito="total">
-                    <ValorEnDolarOficial valorARS={valorRentaFijaARS} />
-                  </ValorSensible>
-                </div>
+                </span>
               </div>
             )}
           </div>
