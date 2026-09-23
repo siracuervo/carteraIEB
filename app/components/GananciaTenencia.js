@@ -195,21 +195,21 @@ export default function GananciaTenencia({ ticker, cantidad, precioActual, valor
         )}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+        <div className="min-w-0 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
           <div className="text-xs" style={{ color: "var(--text-muted)" }}>Cantidad actual</div>
-          <div className="mt-1 text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+          <div className="mt-1 text-base font-semibold tabular-nums sm:text-lg" style={{ color: "var(--text-primary)" }}>
             <ValorSensible>{(cantidad ?? 0).toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>
           </div>
         </div>
-        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+        <div className="min-w-0 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
           <div className="text-xs" style={{ color: "var(--text-muted)" }}>Precio actual</div>
-          <div className="mt-1 text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+          <div className="mt-1 text-base font-semibold tabular-nums sm:text-lg" style={{ color: "var(--text-primary)" }}>
             {formatoPrecio(precioActual, divisa, claseActivo)}
           </div>
         </div>
-        <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+        <div className="min-w-0 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
           <div className="text-xs" style={{ color: "var(--text-muted)" }}>Valor actual</div>
-          <div className="mt-1 text-lg font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>
+          <div className="mt-1 text-base font-semibold tabular-nums sm:text-lg" style={{ color: "var(--text-primary)" }}>
             <ValorSensible>{formatoMoneda(valorActual, "ARS")}</ValorSensible>
           </div>
         </div>

@@ -23,25 +23,25 @@ export default function FiltroFechasActivo({ desde, hasta, fechaInicio }) {
   return (
     <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
       <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Desde
           <input
             type="date"
             value={desde || ""}
             min={fechaInicio || undefined}
             onChange={(e) => actualizar(e.target.value, hasta || "")}
-            className="rounded border px-2 py-1 text-sm"
+            className="w-full min-w-0 rounded border px-2 py-1 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
           Hasta
           <input
             type="date"
             value={hasta || ""}
             min={fechaInicio || undefined}
             onChange={(e) => actualizar(desde || "", e.target.value)}
-            className="rounded border px-2 py-1 text-sm"
+            className="w-full min-w-0 rounded border px-2 py-1 text-sm"
             style={{ borderColor: "var(--border)", background: "var(--surface-1)", color: "var(--text-primary)" }}
           />
         </label>

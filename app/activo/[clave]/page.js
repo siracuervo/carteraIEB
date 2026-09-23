@@ -65,9 +65,9 @@ function importeAbsoluto(m, factorPrecio, esCompra) {
 
 function Tarjeta({ etiqueta, valor, color }) {
   return (
-    <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+    <div className="min-w-0 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       <div className="text-xs" style={{ color: "var(--text-muted)" }}>{etiqueta}</div>
-      <div className="mt-1 text-lg font-semibold tabular-nums" style={{ color: color || "var(--text-primary)" }}>
+      <div className="mt-1 text-base font-semibold tabular-nums sm:text-lg" style={{ color: color || "var(--text-primary)" }}>
         {valor}
       </div>
     </div>
@@ -86,7 +86,7 @@ function IconoVentas() {
 /** Encabezado con ícono para agrupar visualmente un bloque de tarjetas. */
 function BloqueTarjetas({ icono, titulo, color, children }) {
   return (
-    <div className="space-y-3 rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
+    <div className="min-w-0 space-y-3 rounded-lg border p-4" style={{ borderColor: "var(--border)", background: "var(--surface-2)" }}>
       <div className="flex items-center gap-2" style={{ color: color || "var(--text-primary)" }}>
         {icono}
         <h2 className="text-sm font-medium">{titulo}</h2>
@@ -212,7 +212,7 @@ export default async function ActivoPage({ params, searchParams }) {
     });
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <main className="mx-auto min-w-0 max-w-5xl space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
       <Link href={esPosicionCerrada ? "/cerradas" : "/"} className="text-sm" style={{ color: "var(--text-muted)" }}>
         ← Volver a {esPosicionCerrada ? "ventas realizadas" : "el portafolio"}
       </Link>
@@ -255,10 +255,10 @@ export default async function ActivoPage({ params, searchParams }) {
                 <Tarjeta etiqueta="Cantidad vendida" valor={<ValorSensible>{ventasDeAbierta.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
                 <Tarjeta etiqueta="Costo vendido" valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.costoTotal, ventasDeAbierta.divisa)}</ValorSensible>} />
                 <Tarjeta etiqueta="Importe recibido" valor={<ValorSensible>{formatoMoneda(ventasDeAbierta.importeVenta, ventasDeAbierta.divisa)}</ValorSensible>} />
-                <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+                <div className="min-w-0 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
                   <div className="text-xs" style={{ color: "var(--text-muted)" }}>P&L realizado</div>
-                  <div className="mt-1 flex items-baseline gap-2 tabular-nums" style={{ color: ventasDeAbierta.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)" }}>
-                    <span className="text-lg font-semibold"><ValorSensible>{formatoMoneda(ventasDeAbierta.gananciaRealizada, ventasDeAbierta.divisa)}</ValorSensible></span>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums" style={{ color: ventasDeAbierta.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)" }}>
+                    <span className="text-base font-semibold sm:text-lg"><ValorSensible>{formatoMoneda(ventasDeAbierta.gananciaRealizada, ventasDeAbierta.divisa)}</ValorSensible></span>
                     {ventasDeAbierta.retornoPct != null && <span className="text-sm font-medium">{formatoPct.format(ventasDeAbierta.retornoPct)}</span>}
                   </div>
                   <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Histórico del activo</div>
@@ -302,10 +302,10 @@ export default async function ActivoPage({ params, searchParams }) {
                 <Tarjeta etiqueta="Cantidad operada" valor={<ValorSensible>{cerrada.cantidadOperada.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>} />
                 <Tarjeta etiqueta="Costo" valor={<ValorSensible>{formatoMoneda(cerrada.costoTotal, cerrada.divisa)}</ValorSensible>} />
                 <Tarjeta etiqueta="Venta" valor={<ValorSensible>{formatoMoneda(cerrada.importeVenta, cerrada.divisa)}</ValorSensible>} />
-                <div className="rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+                <div className="min-w-0 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
                   <div className="text-xs" style={{ color: "var(--text-muted)" }}>P&L realizado</div>
-                  <div className="mt-1 flex items-baseline gap-2 tabular-nums" style={{ color: cerrada.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)" }}>
-                    <span className="text-lg font-semibold"><ValorSensible>{formatoMoneda(cerrada.gananciaRealizada, cerrada.divisa)}</ValorSensible></span>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-2 tabular-nums" style={{ color: cerrada.gananciaRealizada >= 0 ? "var(--good)" : "var(--bad)" }}>
+                    <span className="text-base font-semibold sm:text-lg"><ValorSensible>{formatoMoneda(cerrada.gananciaRealizada, cerrada.divisa)}</ValorSensible></span>
                     {cerrada.retornoPct != null && <span className="text-sm font-medium">{formatoPct.format(cerrada.retornoPct)}</span>}
                   </div>
                   <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>Histórico del activo</div>
