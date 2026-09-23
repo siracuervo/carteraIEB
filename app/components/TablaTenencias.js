@@ -91,6 +91,9 @@ const COLUMNAS_ORDENABLES = {
   pct: { campo: (t) => t.pctCartera },
 };
 
+/** Orden canónico de las cajas dentro del grupo "Pesos". */
+const ORDEN_CAJA = { trading: 0, largo: 1, rentaFija: 2 };
+
 const GRUPOS_TENENCIAS = [
   {
     id: "trading",
@@ -550,7 +553,18 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
   }, [tenencias, orden, liveVisible, modoEfectivo]);
 
   const grupos = useMemo(
-    () => GRUPOS_TENENCIAS.map((g) => ({ ...g, filas: filas.filter(g.esMiembro) })).filter((g) => g.filas.length > 0 || g.siempreVisible),
+    () =>
+      GRUPOS_TENENCIAS.map((g) => {
+        const filasGrupo = filas.filter(g.esMiembro);
+        // Dentro del grupo "Pesos" se respeta el orden canónico trading →
+        // largo plazo → renta fija, siempre: el orden alfabético por defecto
+        // las dejaría como Largo, Renta fija, Trading, y por valor saltaría
+        // primera la que tenga la caución.
+        if (g.id === "efectivo") {
+          filasGrupo.sort((a, b) => (ORDEN_CAJA[a.sleeve] ?? 99) - (ORDEN_CAJA[b.sleeve] ?? 99));
+        }
+        return { ...g, filas: filasGrupo };
+      }).filter((g) => g.filas.length > 0 || g.siempreVisible),
     [filas]
   );
 
