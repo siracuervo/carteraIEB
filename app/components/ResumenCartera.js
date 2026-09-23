@@ -33,6 +33,18 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
     }
     return hay ? total : null;
   })();
+  const valorRentaFijaARS = (() => {
+    if (!tenencias?.length) return null;
+    let total = 0;
+    let hay = false;
+    for (const t of tenencias) {
+      if (t.sleeve !== "rentaFija") continue;
+      if (t.valorActualARS == null) continue;
+      hay = true;
+      total += t.valorActualARS;
+    }
+    return hay ? total : null;
+  })();
 
   return (
     <div>
@@ -63,6 +75,19 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
             <ValorSensible ambito="total">
               <ValorEnDolarOficial valorARS={valorTradingARS} />
             </ValorSensible>
+            {valorRentaFijaARS != null && (
+              <div className="mt-3 pt-2 border-t" style={{ borderColor: "var(--border)" }}>
+                <div className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>Renta fija</div>
+                <div className="mt-0.5 text-lg font-semibold tabular-nums sm:text-xl" style={{ color: "var(--text-primary)" }}>
+                  <ValorSensible ambito="total">{formatoARS.format(valorRentaFijaARS)}</ValorSensible>
+                </div>
+                <div className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  <ValorSensible ambito="total">
+                    <ValorEnDolarOficial valorARS={valorRentaFijaARS} />
+                  </ValorSensible>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
