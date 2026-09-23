@@ -21,17 +21,23 @@ export async function GET(request) {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const dolares = await obtenerTipoCambioDolares();
+  // El mapa `usa` (NYSE/NASDAQ directo) solo lo necesita el modo USA·USD: no
+  // se calcula en el camino común (ahorra ~1 request a Yahoo por ticker).
+  // El dólar se pide en paralelo con el resto (antes los bloqueaba).
+  const quiereUsa = url.searchParams.get("usa") === "1";
+  const [dolares, cedear, usa, manuales] = await Promise.all([
+    obtenerTipoCambioDolares(),
+    tickers.length ? obtenerPrecios(tickers) : new Map(),
+    quiereUsa && tickers.length ? obtenerPreciosDirecto(tickers) : new Map(),
+    tickers.length ? leerCierresManuales() : {},
+  ]);
 
   if (!tickers.length) {
-    return Response.json({ ts: Date.now(), ccl: dolares.ccl, oficial: dolares.oficial, cedear: {}, usa: {} });
+    return Response.json(
+      { ts: Date.now(), ccl: dolares.ccl, oficial: dolares.oficial, cedear: {}, usa: {} },
+      { headers: { "Cache-Control": "public, max-age=15, stale-while-revalidate=45" } }
+    );
   }
-
-  const [cedear, usa, manuales] = await Promise.all([
-    obtenerPrecios(tickers),
-    obtenerPreciosDirecto(tickers),
-    leerCierresManuales(),
-  ]);
 
   // Un cierre guardado a mano (ej. SPCX) pisa la cotización viva fuera de
   // rueda: vale hasta que abra la próxima sesión (BYMA 10:30–17:00 ART).

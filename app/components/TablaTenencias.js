@@ -201,9 +201,13 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
 
     async function refrescar() {
       try {
-        const res = await fetch(`/api/precios?tickers=${encodeURIComponent(tickers.join(","))}`);
+        // El mapa `usa` solo hace falta en modo USA·USD: en el camino común no
+        // se pide y la API se ahorra ~1 request a Yahoo por ticker.
+        const qs = modoEfectivo === "usa" ? `?tickers=${encodeURIComponent(tickers.join(","))}&usa=1` : `?tickers=${encodeURIComponent(tickers.join(","))}`;
+        const res = await fetch(`/api/precios${qs}`);
         const json = await res.json();
-        if (!activo || !json?.cedear || !json?.usa) return;
+        if (!activo || !json?.cedear) return;
+        if (modoEfectivo === "usa" && !json?.usa) return;
         setLive(json);
       } catch {
         // se mantiene el último valor conocido; se reintenta en el próximo ciclo
