@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 // "Histórico" está oculta de momento (a pedido, no borrada) — para volver a
@@ -23,6 +23,23 @@ export default function NavTabs() {
     setDestino(href);
     startNavegar(() => router.push(href));
   }
+
+  // Precalienta las otras pestañas cuando el navegador está idle: el cambio de
+  // pestaña después sale del caché (payload RSC + datos ya calculados) en vez
+  // de esperar el render del server.
+  useEffect(() => {
+    const prefetch = () => {
+      for (const tab of TABS) {
+        if (tab.href !== pathname) router.prefetch(tab.href);
+      }
+    };
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(prefetch, { timeout: 4000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const t = setTimeout(prefetch, 2000);
+    return () => clearTimeout(t);
+  }, [pathname, router]);
 
   return (
     <nav className="flex min-w-0 max-w-full gap-2 overflow-x-auto whitespace-nowrap sm:gap-5">
