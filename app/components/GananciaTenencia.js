@@ -253,7 +253,7 @@ export default function GananciaTenencia({ ticker, cantidad, precioActual, valor
           ) : delta != null || pct != null ? (
             <div className="mt-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <div className="flex items-baseline gap-1 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+                <div className="flex flex-wrap items-baseline gap-1 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
                   <ValorSensible>{formatoPrecio(precioDesde, divisa, claseActivo)}</ValorSensible>
                   <span aria-hidden="true">→</span>
                   <ValorSensible>{formatoPrecio(precioHasta, divisa, claseActivo)}</ValorSensible>

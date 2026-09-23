@@ -93,7 +93,11 @@ export default function RootLayout({ children }) {
               </div>
             </div>
           </header>
-          <div className="flex flex-1 flex-col">{children}</div>
+          {/* Contenedor de bloque (no flex): con `flex-col` + `mx-auto` en el
+              <main> de cada página, el main se dimensionaba al max-content
+              (ej. la tabla de min-w-[600px] en /activo/ lo ensanchaba a 706px
+              en un viewport de 360) y el overflow-x hidden global lo recortaba. */}
+          <div className="min-w-0 flex-1">{children}</div>
         </ProveedorPrivacidad>
       </body>
     </html>

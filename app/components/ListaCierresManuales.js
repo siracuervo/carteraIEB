@@ -111,7 +111,7 @@ export default function ListaCierresManuales({ cierres }) {
   if (!filas.length) return <p className="text-sm" style={{ color: "var(--text-muted)" }}>Todavía no guardaste cierres manuales.</p>;
   return (
     <div className="mt-4 overflow-hidden rounded-lg border" style={{ borderColor: "var(--border)" }}>
-      <div className="max-h-[280px] overflow-y-auto">
+      <div className="max-h-[280px] overflow-auto">
         <table className="w-full text-sm">
           <thead className="sticky top-0" style={{ background: "var(--surface-2)" }}>
             <tr>

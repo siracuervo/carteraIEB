@@ -219,7 +219,7 @@ export default async function ActivoPage({ params, searchParams }) {
 
       <div className="flex items-center gap-3">
         <Logo ticker={activo.ticker} nombre={activo.activo} size={48} />
-        <div>
+        <div className="min-w-0">
           <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>{activo.activo}</h1>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>
             {activo.claseActivo}
