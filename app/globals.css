@@ -3,8 +3,10 @@
 :root {
   /* La página maneja el color scheme por sí misma: así Samsung Internet (y
      Chrome) con "Sitios oscuros"/auto-dark NO fuerzan su inversión encima
-     del modo oscuro nativo de la app. */
-  color-scheme: light;
+     del modo oscuro nativo de la app.
+     IMPORTANTE: declarar "light dark" aquí (fuera del media query) para que
+     el navegador lo lea ANTES de pintar y active "Prefer Media Query". */
+  color-scheme: light dark;
 
   --background: #f9f9f7;
   --foreground: #0b0b0b;
@@ -43,8 +45,6 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    color-scheme: dark;
-
     --background: #0d0d0d;
     --foreground: #ffffff;
 
@@ -125,6 +125,12 @@ a.btn-anim:active {
 /* Pestañas de navegación: sin escala en hover (movía a las vecinas),
  * solo aclarado. */
 button.nav-tab:hover {
+  transform: none;
+}
+
+/* Filas de grupo de estrategias (ancho completo): sin escala en hover,
+ * solo aclarado. Escalar una fila w-full la desborda del contenedor. */
+button.fila-grupo:hover {
   transform: none;
 }
 

@@ -614,7 +614,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
                       <button
                         type="button"
                         onClick={() => alternarGrupo(g.id)}
-                        className="flex w-full cursor-pointer items-center gap-2 text-left"
+                        className="fila-grupo flex w-full cursor-pointer items-center gap-2 text-left"
                         title={abierto ? "Contraer" : "Expandir"}
                       >
                         <IconoChevron abierto={abierto} />
@@ -648,7 +648,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               <button
                 type="button"
                 onClick={() => alternarGrupo(g.id)}
-                className="flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2.5 text-left"
+                className="fila-grupo flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2.5 text-left"
                 style={{ background: "var(--surface-2)" }}
                 title={abierto ? "Contraer" : "Expandir"}
               >
