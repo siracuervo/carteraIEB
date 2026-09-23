@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { esTickerBonoSoberano, TICKERS_SIN_LOGO } from "@/lib/clasificacion";
+import { esTickerBonoSoberano, LOGO_POR_TICKER, LOGOS_PARQET_OK } from "@/lib/clasificacion";
 
 const COLORES_INICIAL = ["var(--series-1)", "var(--series-2)", "var(--series-3)", "var(--series-4)", "var(--series-5)", "var(--series-6)", "var(--series-7)", "var(--series-8)"];
 
@@ -12,7 +12,10 @@ function colorParaTexto(texto) {
 }
 
 export default function Logo({ ticker, nombre, size = 28, banderaArgentina = false }) {
-  const [conError, setConError] = useState(false);
+  // Etapa de fallback por ticker (persiste si la lista reordena): 0 = logo
+  // explícito, 1 = parqet (solo LOGOS_PARQET_OK), 2 = inicial. Sin logo
+  // explícito se arranca en 1 para no pedir parqet de gusto.
+  const [fallos, setFallos] = useState({});
 
   if (banderaArgentina) {
     return (
@@ -52,7 +55,25 @@ export default function Logo({ ticker, nombre, size = 28, banderaArgentina = fal
     );
   }
 
-  if (conError || !ticker || TICKERS_SIN_LOGO.has(ticker.toUpperCase())) {
+  if (!ticker) {
+    const texto = nombre || "?";
+    const inicial = texto.trim().charAt(0).toUpperCase();
+    return (
+      <span
+        className="inline-flex shrink-0 items-center justify-center rounded-full text-xs font-medium text-white"
+        style={{ width: size, height: size, background: colorParaTexto(texto) }}
+      >
+        {inicial}
+      </span>
+    );
+  }
+
+  const tick = ticker.toUpperCase();
+  const logoExplicito = LOGO_POR_TICKER[tick] ?? null;
+  const parqetHabilitado = LOGOS_PARQET_OK.has(tick);
+  const etapa = fallos[tick] ?? (logoExplicito ? 0 : 1);
+
+  if (etapa > 1 || (etapa > 0 && !parqetHabilitado)) {
     const texto = nombre || ticker || "?";
     const inicial = texto.trim().charAt(0).toUpperCase();
     return (
@@ -65,16 +86,17 @@ export default function Logo({ ticker, nombre, size = 28, banderaArgentina = fal
     );
   }
 
+  // Sin logo explícito se arranca directo en parqet (etapa 1).
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`https://assets.parqet.com/logos/symbol/${encodeURIComponent(ticker)}`}
+      src={etapa === 0 && logoExplicito ? logoExplicito : `https://assets.parqet.com/logos/symbol/${encodeURIComponent(ticker)}`}
       alt=""
       width={size}
       height={size}
       className="shrink-0 rounded-full border object-contain p-0.5"
       style={{ borderColor: "var(--border)", background: "#fff" }}
-      onError={() => setConError(true)}
+      onError={() => setFallos((f) => ({ ...f, [tick]: etapa + 1 }))}
     />
   );
 }

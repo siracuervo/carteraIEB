@@ -8,7 +8,7 @@ import { CLASES } from "@/lib/clasificacion";
 import { fechaLocal } from "@/lib/fechas";
 import Logo from "@/app/components/Logo";
 import ValorSensible from "@/app/components/ValorSensible";
-import GraficoOperaciones from "@/app/components/GraficoOperaciones";
+import GraficoOperacionesLazy from "@/app/components/GraficoOperacionesLazy";
 import GananciaTenencia from "@/app/components/GananciaTenencia";
 import FiltroFechasActivo from "@/app/components/FiltroFechasActivo";
 import IconoCartera from "@/app/components/IconoCartera";
@@ -382,7 +382,7 @@ export default async function ActivoPage({ params, searchParams }) {
         )}
         {movimientos.length > 0 && (
           <div className="p-4 pt-0">
-            <GraficoOperaciones movimientos={movimientos} factorPrecio={factorPrecio} divisa={activo.divisa} />
+            <GraficoOperacionesLazy movimientos={movimientos} factorPrecio={factorPrecio} divisa={activo.divisa} />
           </div>
         )}
         {movimientos.length > 0 && (

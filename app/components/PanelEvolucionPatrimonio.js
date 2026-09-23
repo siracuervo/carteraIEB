@@ -1,9 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import GraficoEvolucionPatrimonio from "./GraficoEvolucionPatrimonio";
-import MedidorGanancia, { GananciaSleeve } from "./MedidorGanancia";
+import dynamic from "next/dynamic";
 import { ACCESOS_RAPIDOS_FECHA } from "@/lib/accesosRapidosFecha";
+
+// Cargados on-demand: recharts (el gráfico) y los medidores de ganancia no
+// hacen falta para el primer pintado de la home, así que se piden como chunk
+// aparte al cambiar de pestaña (con esqueleto mientras llega).
+const GraficoEvolucionPatrimonio = dynamic(() => import("./GraficoEvolucionPatrimonio"), {
+  ssr: false,
+  loading: () => <SkeletonGrafico />,
+});
+const MedidorGanancia = dynamic(() => import("./MedidorGanancia"), {
+  ssr: false,
+  loading: () => <SkeletonGrafico />,
+});
+const GananciaSleeve = dynamic(() => import("./MedidorGanancia").then((m) => ({ default: m.GananciaSleeve })), {
+  ssr: false,
+  loading: () => <SkeletonGrafico />,
+});
+
+function SkeletonGrafico() {
+  return (
+    <div className="flex flex-1 items-center justify-center text-xs" style={{ color: "var(--text-muted)" }}>
+      Cargando…
+    </div>
+  );
+}
 
 const OPCIONES = [
   { id: "grafico", etiqueta: "Gráfico" },
