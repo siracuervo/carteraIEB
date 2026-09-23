@@ -50,5 +50,12 @@ export async function GET(request) {
     return resultado;
   };
 
-  return Response.json({ ts: Date.now(), ccl: dolares.ccl, oficial: dolares.oficial, cedear: map(cedear), usa: map(usa) });
+  // El server ya cachea fuentes 15 s: se refleja en el cliente para que las
+  // aperturas repetidas (mount de TablaTenencias/DolarCCL/...) resuelvan
+  // al instante desde la caché HTTP y revaliden en fondo. No agrega staleness
+  // más allá del que ya existe server-side.
+  return Response.json(
+    { ts: Date.now(), ccl: dolares.ccl, oficial: dolares.oficial, cedear: map(cedear), usa: map(usa) },
+    { headers: { "Cache-Control": "public, max-age=15, stale-while-revalidate=45" } }
+  );
 }
