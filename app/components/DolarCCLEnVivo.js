@@ -52,7 +52,6 @@ export default function DolarCCLEnVivo({ referencia, parte = "todo" }) {
       style={{ color: "var(--text-muted)" }}
     >
       <span className="hidden text-xs sm:inline">última actualización</span>
-      <span className="text-xs sm:hidden">actualizado</span>
       <span className="hidden text-xs tabular-nums sm:inline">
         {formatoFecha.format(ts)} · {formatoHora.format(ts)}
       </span>

@@ -6,7 +6,9 @@ import PanelEvolucionPatrimonio from "./PanelEvolucionPatrimonio";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoProporcion = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 1 });
-const formatoFechaCorta = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
+// Fecha "de hoy" en hora argentina: el server corre en UTC y de 21:00 a 24:00 ART
+// mostraría la fecha de mañana.
+const formatoFechaCortaART = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Argentina/Buenos_Aires" });
 
 const CLASE_TARJETA = "flex flex-col justify-center rounded-lg border p-3";
 
@@ -17,7 +19,7 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
     conversionIncompleta,
     composicion,
   } = resumen;
-  const hoy = formatoFechaCorta.format(new Date());
+  const hoy = formatoFechaCortaART.format(new Date());
 
   return (
     <div>

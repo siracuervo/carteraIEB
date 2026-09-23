@@ -45,9 +45,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  /* :not() permite forzar el tema claro desde el selector propio
-     (html[data-tema]) sin depender del navegador (ej. Samsung Internet). */
-  :root:not([data-tema="claro"]) {
+  :root {
     --background: #0d0d0d;
     --foreground: #ffffff;
 
@@ -74,48 +72,6 @@
     --marca: #9085e9;
     --marca-suave: #2a2447;
   }
-}
-
-/*
- * Forzado manual desde el selector de tema propio (html[data-tema]): vale
- * aunque el navegador no propague prefers-color-scheme (Samsung Internet).
- * Mismas variables que el bloque dark de arriba.
- */
-:root[data-tema="oscuro"] {
-  --background: #0d0d0d;
-  --foreground: #ffffff;
-
-  --surface-1: #1a1a19;
-  --surface-2: #262624;
-  --text-primary: #ffffff;
-  --text-secondary: #c3c2b7;
-  --text-muted: #898781;
-  --gridline: #2c2c2a;
-  --baseline: #383835;
-  --border: rgba(255, 255, 255, 0.1);
-  --good: #0ca30c;
-  --bad: #e66767;
-
-  --series-1: #9085e9;
-  --series-2: #e66767;
-  --series-3: #3987e5;
-  --series-4: #d95926;
-  --series-5: #199e70;
-  --series-6: #c98500;
-  --series-7: #d55181;
-  --series-8: #008300;
-
-  --marca: #9085e9;
-  --marca-suave: #2a2447;
-}
-
-/* color-scheme según el tema forzado: además de teñir controles nativos, es
-   la señal que hace retroceder al "Sitios oscuros"/force-dark del navegador. */
-:root[data-tema="oscuro"] {
-  color-scheme: dark;
-}
-:root[data-tema="claro"] {
-  color-scheme: only light;
 }
 
 /*
