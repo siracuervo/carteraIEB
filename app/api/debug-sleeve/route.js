@@ -1,5 +1,5 @@
 import { obtenerDatosCartera } from "@/lib/datosCartera";
-import { lotesPorSleeve, efectivoPorSleeve, precioEnFecha } from "@/lib/sleeves";
+import { lotesPorSleeve } from "@/lib/sleeves";
 
 export const dynamic = "force-dynamic";
 
@@ -54,11 +54,25 @@ export async function GET(request) {
   };
   const base = valorEn(fotoDesde);
   const valueH = valorEn(fotoHasta);
+  // Detalle de lotes para el hasta (para cazar fantasma)
+  let detalleLotes = null;
+  try {
+    const { leerTransacciones, leerPortafolioHistorial, leerClasificaciones } = await import("@/lib/storage");
+    const { resolverTickersConPortafolio } = await import("@/lib/calculos");
+    const { aperturaDesdePortafolio } = await import("@/lib/sleeves");
+    const [txRaw, portHist, overrides] = await Promise.all([leerTransacciones(), leerPortafolioHistorial(), leerClasificaciones()]);
+    const txRes = resolverTickersConPortafolio(txRaw, portHist);
+    const ultimo = portHist[portHist.length-1];
+    const apert2 = aperturaDesdePortafolio(ultimo, overrides);
+    const mapa = lotesPorSleeve(txRes, { aperturaLotes: apert2.lotes, fechaCorte: datos.fechaCorteSleeves, hastaFecha: fotoHasta, overrides });
+    detalleLotes = [...mapa.values()].filter(l=>l.sleeve==="trading" && l.cantidad>0).map(l=>({clave:l.clave, ticker:l.ticker, cant:l.cantidad, sleeve:l.sleeve})).sort((a,b)=>(a.ticker||"").localeCompare(b.ticker||""));
+  } catch(e) { detalleLotes = {error: e.message}; }
   return Response.json({
     desde, hasta, sleeve, fotoDesde, fotoHasta, base, valueH, delta: valueH-base,
     serieTrading: datos.serieTrading,
     serieEfectivoTrading: datos.serieEfectivoTrading,
     efectivoSleeves: datos.efectivoSleeves,
     tenenciasTradingPos: datos.tenencias?.filter(t=>t.sleeve==="trading" && !t.esCash)?.map(t=>({ticker:t.ticker, cant:t.cantidad, precio:t.precioActual, valor:t.valorActualARS})),
+    detalleLotesHasta: detalleLotes,
   });
 }
