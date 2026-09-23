@@ -93,7 +93,7 @@ export default function PanelEvolucionPatrimonio({ serie, snapshots, transaccion
   const enPeriodo = vista === "medidor" || vista === "variable";
 
   return (
-    <div className="flex h-[360px] min-h-[320px] flex-col overflow-hidden text-sm sm:h-[300px] sm:min-h-[300px]">
+    <div className="flex h-full min-h-[240px] flex-col overflow-hidden text-sm">
       <div className="mb-1.5 flex min-w-0 max-w-full shrink-0 gap-2 overflow-x-auto whitespace-nowrap sm:gap-3" style={{ borderBottom: "1px solid var(--border)" }}>
         {OPCIONES.map((opcion) => {
           const activa = vista === opcion.id;

@@ -241,7 +241,7 @@ export default function EvolucionPatrimonio({ evolucion, evolucionSemana, semana
   }
 
   return (
-    <div className="flex flex-col gap-1 rounded-lg border p-2" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+    <div className="flex h-full flex-col gap-1 rounded-lg border p-2" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           {semana && <NavegacionSemanas semanas={semanas} indiceSemana={indiceSemana} onCambiar={cambiarSemana} />}
