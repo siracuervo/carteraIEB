@@ -560,6 +560,18 @@ export async function quitarTraspasoEfectivo(id) {
   return { error: null, exito: { eliminado: true } };
 }
 
+/** Elimina una operación (manual o importada) por su clave. */
+export async function quitarTransaccion(clave) {
+  if (!clave) return { error: "Falta la operación.", exito: null };
+  const { eliminarTransaccion } = await import("@/lib/storage");
+  const ok = await eliminarTransaccion(String(clave));
+  if (!ok) return { error: "No se encontró la operación.", exito: null };
+  revalidatePath("/movimientos");
+  revalidatePath("/", "layout");
+  revalidatePath("/trades");
+  return { error: null, exito: { eliminado: true } };
+}
+
 export async function guardarNotaTrade(prevState, formData) {
   const id = String(formData.get("id") || "").trim();
   const razon = String(formData.get("razon") || "");

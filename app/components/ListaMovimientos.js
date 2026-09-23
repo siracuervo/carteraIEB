@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { fechaLocal } from "@/lib/fechas";
 import { aISO } from "@/lib/accesosRapidosFecha";
 import { clasificar, CLASES } from "@/lib/clasificacion";
 import { factorPrecioPorClase } from "@/lib/calculos";
+import { quitarTransaccion } from "@/app/actions";
 import FormEditarOperacion from "./FormEditarOperacion";
 
 const formatoFecha = new Intl.DateTimeFormat("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -64,6 +65,26 @@ const estiloInput = {
   background: "var(--surface-1)",
   color: "var(--text-primary)",
 };
+
+/** Botón Eliminar por fila (con confirmación): vale para manuales e importadas. */
+function BotonEliminar({ transaccion }) {
+  const [pendiente, start] = useTransition();
+  const resumen = `${operacionCorta(transaccion)} ${transaccion.ticker || transaccion.activo || ""} ${transaccion.fecha || ""}`.trim();
+  return (
+    <button
+      type="button"
+      disabled={pendiente}
+      onClick={() => {
+        if (!window.confirm(`¿Eliminar esta operación? (${resumen})`)) return;
+        start(async () => { await quitarTransaccion(transaccion.clave); });
+      }}
+      className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60"
+      style={{ borderColor: "var(--bad)", color: "var(--bad)", background: "transparent" }}
+    >
+      {pendiente ? "Eliminando…" : "Eliminar"}
+    </button>
+  );
+}
 
 /** Lista completa de operaciones con filtros de búsqueda, tipo, rango de fechas y divisa. */
 export default function ListaMovimientos({ transacciones }) {
@@ -206,7 +227,7 @@ export default function ListaMovimientos({ transacciones }) {
             </div>
           </div>
         </div>
-        <div className="mt-2 flex justify-end">
+        <div className="mt-2 flex justify-end gap-2">
           <button
             type="button"
             onClick={() => setEditandoClave((actual) => (actual === t.clave ? null : t.clave))}
@@ -215,6 +236,7 @@ export default function ListaMovimientos({ transacciones }) {
           >
             {editandoClave === t.clave ? "Cerrar" : "Editar"}
           </button>
+          <BotonEliminar transaccion={t} />
         </div>
       </div>
     );
@@ -326,7 +348,7 @@ export default function ListaMovimientos({ transacciones }) {
               <th className="px-3 py-2 text-right font-medium">Precio</th>
               <th className="px-3 py-2 text-right font-medium">Importe ARS</th>
               <th className="px-3 py-2 text-right font-medium">
-                Editar
+                Acciones
               </th>
             </tr>
           </thead>
@@ -385,14 +407,17 @@ export default function ListaMovimientos({ transacciones }) {
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setEditandoClave((actual) => (actual === t.clave ? null : t.clave))}
-                            className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors"
-                            style={{ borderColor: "var(--marca)", color: "var(--marca)", background: "var(--surface-2)" }}
-                          >
-                            {editandoClave === t.clave ? "Cerrar" : "Editar"}
-                          </button>
+                          <span className="inline-flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditandoClave((actual) => (actual === t.clave ? null : t.clave))}
+                              className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors"
+                              style={{ borderColor: "var(--marca)", color: "var(--marca)", background: "var(--surface-2)" }}
+                            >
+                              {editandoClave === t.clave ? "Cerrar" : "Editar"}
+                            </button>
+                            <BotonEliminar transaccion={t} />
+                          </span>
                         </td>
                       </tr>
                     </Fragment>
