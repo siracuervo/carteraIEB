@@ -50,20 +50,18 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
     <div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <div className="col-span-1 flex h-full flex-col gap-2 sm:col-span-2 lg:col-span-1">
-          <div className={`${CLASE_TARJETA} flex-1 p-2 lg:min-w-56`} style={{ borderColor: "var(--marca)", background: "var(--marca-suave)" }}>
+          <div className={`${CLASE_TARJETA} flex-1 p-2 sm:p-3 lg:min-w-56`} style={{ borderColor: "var(--marca)", background: "var(--marca-suave)" }}>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <div className="text-sm font-semibold" style={{ color: "var(--marca)" }}>Valor de Portafolio</div>
               <BotonPrivacidadTotal />
-              <div className="text-xs font-semibold tabular-nums" style={{ color: "var(--text-primary)" }}>{hoy}</div>
+              <div className="text-xs font-semibold tabular-nums sm:text-sm" style={{ color: "var(--text-primary)" }}>{hoy}</div>
             </div>
-            <div className="mt-0.5 text-xl font-semibold tabular-nums sm:text-2xl" style={{ color: "var(--marca)" }}>
+            <div className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl" style={{ color: "var(--marca)" }}>
               <ValorSensible ambito="total">{formatoARS.format(valorTotalARS)}</ValorSensible>
             </div>
-            <div className="text-xs">
-              <ValorSensible ambito="total">
-                <ValorEnDolarOficial valorARS={valorTotalARS} />
-              </ValorSensible>
-            </div>
+            <ValorSensible ambito="total">
+              <ValorEnDolarOficial valorARS={valorTotalARS} />
+            </ValorSensible>
           </div>
 
           <div className={`${CLASE_TARJETA} flex-1 p-2 lg:min-w-56`} style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
