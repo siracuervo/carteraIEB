@@ -122,9 +122,11 @@ export async function importarOperacionesDelDia(prevState, formData) {
     return { error: "Seleccioná al menos un archivo de 'Operaciones del día' (.xlsx).", exito: null };
   }
 
+  const importId = `imp-${Date.now().toString(36)}-${Math.round(Math.random() * 1e6).toString(36)}`;
   let agregadasTotal = 0;
   let actualizadasTotal = 0;
   const errores = [];
+  const dias = new Set();
 
   for (const archivo of archivos) {
     try {
@@ -136,7 +138,8 @@ export async function importarOperacionesDelDia(prevState, formData) {
       if (!transacciones?.length) {
         throw new Error("el archivo no trae operaciones de compra/venta");
       }
-      const { agregadas, actualizadas } = await mergeTransacciones(transacciones);
+      for (const t of transacciones) if (t?.fecha) dias.add(t.fecha);
+      const { agregadas, actualizadas } = await mergeTransacciones(transacciones, { importId });
       agregadasTotal += agregadas;
       actualizadasTotal += actualizadas;
     } catch (err) {
@@ -148,12 +151,36 @@ export async function importarOperacionesDelDia(prevState, formData) {
     return { error: errores.join(" · "), exito: null };
   }
 
+  if (agregadasTotal > 0 || actualizadasTotal > 0) {
+    const { registrarImportacion } = await import("@/lib/storage");
+    await registrarImportacion({
+      id: importId,
+      tipo: "operaciones-del-dia",
+      archivos: archivos.map((a) => a.name),
+      agregadas: agregadasTotal,
+      actualizadas: actualizadasTotal,
+      dias: [...dias].sort(),
+    });
+  }
+
   revalidatePath("/", "layout");
   revalidatePath("/movimientos");
   return {
     error: errores.length ? errores.join(" · ") : null,
-    exito: { agregadas: agregadasTotal, actualizadas: actualizadasTotal },
+    exito: { agregadas: agregadasTotal, actualizadas: actualizadasTotal, importId },
   };
+}
+
+/**
+ * Deshace una importación del día: elimina las operaciones que ese lote agregó
+ * como nuevas. Las que ya existían (solo se completaron datos) no se tocan.
+ */
+export async function eliminarImportacion(importId) {
+  if (!importId || typeof importId !== "string") return;
+  const { eliminarImportacion: eliminar } = await import("@/lib/storage");
+  await eliminar(importId);
+  revalidatePath("/", "layout");
+  revalidatePath("/movimientos");
 }
 
 /**

@@ -1,4 +1,4 @@
-import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, leerClasificaciones, leerCierresManuales, claveTransaccion } from "@/lib/storage";
+import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, leerClasificaciones, leerCierresManuales, leerImportaciones, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
 import { importarOperacionesDelDia, guardarCierreManual, importarRespaldo } from "@/app/actions";
@@ -11,6 +11,7 @@ import SelectorCargaMovimientos from "@/app/components/SelectorCargaMovimientos"
 import ListaActivos from "@/app/components/ListaActivos";
 import ListaMovimientos from "@/app/components/ListaMovimientos";
 import ListaCierresManuales from "@/app/components/ListaCierresManuales";
+import ListaImportaciones from "@/app/components/ListaImportaciones";
 import SeccionCarga from "@/app/components/SeccionCarga";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ function esDiaHabil(fecha) {
 }
 
 export default async function MovimientosPage() {
-  const [transaccionesRaw, portafolioHistorial, movimientosFondos, cierresManuales] = await Promise.all([leerTransacciones(), leerPortafolioHistorial(), leerMovimientosFondos(), leerCierresManuales()]);
+  const [transaccionesRaw, portafolioHistorial, movimientosFondos, cierresManuales, importaciones] = await Promise.all([leerTransacciones(), leerPortafolioHistorial(), leerMovimientosFondos(), leerCierresManuales(), leerImportaciones()]);
 
   // Misma resolución de tickers que usan el dashboard y las páginas de activo, para
   // que la clave de cada operación coincida con la del enlace /activo/[clave].
@@ -174,6 +175,7 @@ export default async function MovimientosPage() {
           ayudaDropzone=".xlsx — podés seleccionar más de uno; se agregan como compras y ventas sin duplicar"
           textoBoton="Importar como compras y ventas"
         />
+        <ListaImportaciones importaciones={importaciones} />
       </SeccionCarga>
 
       <SeccionCarga
