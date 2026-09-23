@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { fechaLocal } from "@/lib/fechas";
 import { aISO } from "@/lib/accesosRapidosFecha";
 import { clasificar, CLASES } from "@/lib/clasificacion";
@@ -67,8 +68,9 @@ const estiloInput = {
 };
 
 /** Botón Eliminar por fila (con confirmación): vale para manuales e importadas. */
-function BotonEliminar({ transaccion }) {
+function BotonEliminar({ transaccion, onEliminada }) {
   const [pendiente, start] = useTransition();
+  const router = useRouter();
   const resumen = `${operacionCorta(transaccion)} ${transaccion.ticker || transaccion.activo || ""} ${transaccion.fecha || ""}`.trim();
   return (
     <button
@@ -76,7 +78,17 @@ function BotonEliminar({ transaccion }) {
       disabled={pendiente}
       onClick={() => {
         if (!window.confirm(`¿Eliminar esta operación? (${resumen})`)) return;
-        start(async () => { await quitarTransaccion(transaccion.clave); });
+        start(async () => {
+          const res = await quitarTransaccion(transaccion.clave);
+          if (res?.error) {
+            window.alert(res.error);
+            return;
+          }
+          // Borrado optimista: se oculta ya (el re-render del server puede
+          // tardar por cachés) y se concilia con el server.
+          onEliminada?.(transaccion.clave);
+          router.refresh();
+        });
       }}
       className="cursor-pointer rounded-md border px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60"
       style={{ borderColor: "var(--bad)", color: "var(--bad)", background: "transparent" }}
@@ -99,6 +111,9 @@ export default function ListaMovimientos({ transacciones }) {
   // movimientos) y se navega hacia atrás con los botones.
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
   const hoyISO = aISO(new Date());
+  // Claves borradas con éxito pero que el server puede tardar en dejar de
+  // mandar (cachés): se ocultan ya en el cliente (borrado optimista).
+  const [ocultas, setOcultas] = useState([]);
 
   const filtradas = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -136,10 +151,15 @@ export default function ListaMovimientos({ transacciones }) {
 
   // En modo día se muestra solo ese día (las operaciones sin fecha se dejan visibles);
   // con rango, todos los días del rango, agrupados por día.
-  const visibles = useMemo(() => {
+  const visiblesBase = useMemo(() => {
     if (enRango || !diaEfectivo) return filtradas;
     return filtradas.filter((t) => t.fecha === diaEfectivo || !t.fecha);
   }, [filtradas, enRango, diaEfectivo]);
+
+  const visibles = useMemo(
+    () => (ocultas.length ? visiblesBase.filter((t) => !ocultas.includes(t.clave)) : visiblesBase),
+    [visiblesBase, ocultas]
+  );
 
   const grupos = useMemo(() => {
     const mapa = new Map();
@@ -236,7 +256,7 @@ export default function ListaMovimientos({ transacciones }) {
           >
             {editandoClave === t.clave ? "Cerrar" : "Editar"}
           </button>
-          <BotonEliminar transaccion={t} />
+          <BotonEliminar transaccion={t} onEliminada={(clave) => setOcultas((o) => (o.includes(clave) ? o : [...o, clave]))} />
         </div>
       </div>
     );
@@ -416,7 +436,7 @@ export default function ListaMovimientos({ transacciones }) {
                             >
                               {editandoClave === t.clave ? "Cerrar" : "Editar"}
                             </button>
-                            <BotonEliminar transaccion={t} />
+                            <BotonEliminar transaccion={t} onEliminada={(clave) => setOcultas((o) => (o.includes(clave) ? o : [...o, clave]))} />
                           </span>
                         </td>
                       </tr>
