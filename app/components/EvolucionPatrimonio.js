@@ -139,16 +139,31 @@ function Fila({ etiqueta, subtitulo, variacion }) {
           </div>
         </div>
       )}
-      {variacion.sinRentaFija && (
-        <div className="mt-1 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
-          Sin renta fija:{" "}
-          <span style={{ color: variacion.sinRentaFija.diffARS >= 0 ? "var(--good)" : "var(--bad)" }}>
-            {variacion.sinRentaFija.diffARS > 0 ? "+" : ""}
-            <ValorSensible>{formatoARS.format(variacion.sinRentaFija.diffARS)}</ValorSensible>
-            {" "}({variacion.sinRentaFija.diffPct != null ? formatoPct.format(variacion.sinRentaFija.diffPct) : "—"})
-          </span>
-        </div>
-      )}
+      {variacion.sinRentaFija && (() => {
+        const sin = variacion.sinRentaFija;
+        const mismo =
+          Math.abs(sin.diffARS - variacion.diffARS) < 0.5 &&
+          (sin.diffPct == null || variacion.diffPct == null
+            ? sin.diffPct === variacion.diffPct
+            : Math.abs(sin.diffPct - variacion.diffPct) < 0.00005);
+        if (mismo) {
+          return (
+            <div className="mt-1 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+              Sin renta fija: Sin cambios
+            </div>
+          );
+        }
+        return (
+          <div className="mt-1 text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
+            Sin renta fija:{" "}
+            <span style={{ color: sin.diffARS >= 0 ? "var(--good)" : "var(--bad)" }}>
+              {sin.diffARS > 0 ? "+" : ""}
+              <ValorSensible>{formatoARS.format(sin.diffARS)}</ValorSensible>
+              {" "}({sin.diffPct != null ? formatoPct.format(sin.diffPct) : "—"})
+            </span>
+          </div>
+        );
+      })()}
     </div>
   );
 }
