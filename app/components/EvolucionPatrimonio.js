@@ -105,9 +105,9 @@ function NavegacionSemanas({ semanas, indiceSemana, onCambiar }) {
 function Fila({ etiqueta, subtitulo, variacion }) {
   if (!variacion) {
     return (
-      <div className="border-t pt-2 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
+      <div className="border-t pt-1.5 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
         <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>{etiqueta}</div>
-        <p className="mt-1 text-sm" style={{ color: "var(--text-muted)" }}>{subtitulo}</p>
+        <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>{subtitulo}</p>
       </div>
     );
   }
@@ -115,7 +115,7 @@ function Fila({ etiqueta, subtitulo, variacion }) {
   const color = variacion.diffARS >= 0 ? "var(--good)" : "var(--bad)";
   const tieneValores = variacion.desdeValorARS != null && variacion.hastaValorARS != null;
   return (
-    <div className="border-t pt-2 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
+    <div className="border-t pt-1.5 first:border-t-0 first:pt-0" style={{ borderColor: "var(--border)" }}>
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>{etiqueta}</div>
         <div className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>
@@ -124,16 +124,16 @@ function Fila({ etiqueta, subtitulo, variacion }) {
       </div>
       {tieneValores && (
         <div className="mt-0.5 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-1 text-sm tabular-nums" style={{ color: "var(--text-secondary)" }}>
+          <div className="flex min-w-0 flex-wrap items-baseline gap-1 text-xs tabular-nums" style={{ color: "var(--text-secondary)" }}>
             <ValorSensible>{formatoARS.format(variacion.desdeValorARS)}</ValorSensible>
             <span aria-hidden="true">→</span>
             <ValorSensible>{formatoARS.format(variacion.hastaValorARS)}</ValorSensible>
           </div>
-          <div className="flex shrink-0 items-baseline gap-2">
-            <span className="text-sm tabular-nums" style={{ color }}>
+          <div className="flex shrink-0 items-baseline gap-1.5">
+            <span className="text-xs tabular-nums" style={{ color }}>
               <ValorSensible>{formatoARS.format(variacion.diffARS)}</ValorSensible>
             </span>
-            <span className="text-lg sm:text-xl font-semibold tabular-nums" style={{ color }}>
+            <span className="text-base sm:text-lg font-semibold tabular-nums" style={{ color }}>
               {formatoPct.format(variacion.diffPct)}
             </span>
           </div>
@@ -226,7 +226,7 @@ export default function EvolucionPatrimonio({ evolucion, evolucionSemana, semana
   }
 
   return (
-    <div className="flex h-full flex-col justify-center gap-1 rounded-lg border p-3" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+    <div className="flex flex-col gap-1 rounded-lg border p-2" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
       <div>
         <div className="flex flex-wrap items-center justify-between gap-2">
           {semana && <NavegacionSemanas semanas={semanas} indiceSemana={indiceSemana} onCambiar={cambiarSemana} />}

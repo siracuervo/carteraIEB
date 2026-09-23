@@ -87,11 +87,11 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
           </div>
         </div>
 
-        <div className="col-span-1 flex h-full flex-col gap-2 sm:col-span-2 lg:col-span-1">
+        <div className="col-span-1 flex flex-col gap-2 sm:col-span-2 lg:col-span-1">
           <div className={`${CLASE_TARJETA} p-2`} style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
             <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Composición de Portafolio</div>
             <div
-              className="mt-2 flex items-start justify-between gap-2 sm:gap-3"
+              className="mt-1.5 flex items-start justify-between gap-2 sm:gap-3"
               title="Proporciones sobre el valor en ARS de las posiciones valuadas"
             >
               {(composicion ?? []).map((grupo) => (
@@ -104,7 +104,7 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
               ))}
             </div>
           </div>
-          <div className="flex-1 min-h-0">
+          <div>
             <EvolucionPatrimonio evolucion={evolucion} evolucionSemana={evolucionSemana} semanasEvolucion={semanasEvolucion} />
           </div>
         </div>
