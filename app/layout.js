@@ -1,5 +1,4 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import NavTabs from "./components/NavTabs";
 import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
 import EnlaceSiracartera from "./components/EnlaceSiracartera";
@@ -54,10 +53,14 @@ export default function RootLayout({ children }) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <Script
-        id="privacidad-inicial"
-        strategy="beforeInteractive"
-      >{`try{var d=document.documentElement;if(localStorage.getItem('iebCarteraOculto')==='1')d.classList.add('priv-todo');if(localStorage.getItem('iebCarteraOcultoTotal')==='1')d.classList.add('priv-total');}catch(e){}`}</Script>
+      <head>
+        <script
+          id="privacidad-inicial"
+          dangerouslySetInnerHTML={{
+            __html: `try{var d=document.documentElement;if(localStorage.getItem('iebCarteraOculto')==='1')d.classList.add('priv-todo');if(localStorage.getItem('iebCarteraOcultoTotal')==='1')d.classList.add('priv-total');}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <RegistroSW />
         <ProveedorPrivacidad>
