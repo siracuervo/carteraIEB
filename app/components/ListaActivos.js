@@ -64,7 +64,7 @@ export default function ListaActivos({ activos }) {
           <Link
             key={a.clave}
             href={`/activo/${encodeURIComponent(a.clave)}`}
-            className="flex items-center justify-between gap-3 px-4 py-2.5"
+            className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:underline"
             style={{
               display: "flex",
               background: "var(--surface-1)",

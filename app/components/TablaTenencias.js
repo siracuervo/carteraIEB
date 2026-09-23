@@ -451,7 +451,7 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
               <div className="truncate text-sm" style={{ color: "var(--text-primary)" }}>{t.activo}</div>
             </div>
           ) : (
-            <Link href={`/activo/${encodeURIComponent(t.clave)}`} className="flex min-w-0 flex-1 items-center gap-2">
+            <Link href={`/activo/${encodeURIComponent(t.clave)}`} className="flex min-w-0 flex-1 items-center gap-2 hover:underline">
               <Logo ticker={t.ticker} nombre={t.activo} banderaArgentina={d.banderaArgentina} />
               <div className="truncate text-sm font-bold" style={{ color: "var(--marca)" }}>{t.ticker || t.activo}</div>
             </Link>
