@@ -58,7 +58,7 @@ export async function importarPortafolio(prevState, formData) {
         if (t.ticker && t.precio != null) preciosSnapshot[t.ticker] = t.precio;
       }
       if (Object.keys(preciosSnapshot).length) {
-        await mergeCierresDiarios({ [portafolio.fecha]: preciosSnapshot });
+        await mergeCierresDiarios({ [portafolio.fecha]: preciosSnapshot }, { forzar: true });
       }
       importados++;
       ultimoPatrimonio = portafolio.patrimonioTotal;
@@ -168,7 +168,7 @@ export async function guardarCierreManual(prevState, formData) {
   if (!ticker || !/^\d{4}-\d{2}-\d{2}$/.test(fecha) || !Number.isFinite(precio) || precio <= 0) {
     return { error: "Completá ticker, fecha y un precio válido.", exito: null };
   }
-  await mergeCierresDiarios({ [fecha]: { [ticker]: precio } });
+  await mergeCierresDiarios({ [fecha]: { [ticker]: precio } }, { forzar: true });
   const { mergeCierresManuales } = await import("@/lib/storage");
   await mergeCierresManuales({ [fecha]: { [ticker]: precio } });
   revalidatePath("/", "layout");

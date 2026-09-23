@@ -1,4 +1,4 @@
-import { leerTransacciones, leerPortafolioHistorial, leerCierresManuales, mergeCierresDiarios } from "@/lib/storage";
+import { leerTransacciones, leerPortafolioHistorial, leerCierresManuales, mergeCierresDiarios, limpiarVersionesViejasBlob } from "@/lib/storage";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
 import { obtenerPrecios } from "@/lib/precios";
 import { TICKERS_NO_MERCADO } from "@/lib/clasificacion";
@@ -63,6 +63,14 @@ export async function GET(request) {
     return Response.json({ fecha, guardados: 0, motivo: "Sin cotizaciones." });
   }
 
-  await mergeCierresDiarios({ [fecha]: mapa });
-  return Response.json({ fecha, guardados: Object.keys(mapa).length, tickers: Object.keys(mapa).sort() });
+  await mergeCierresDiarios({ [fecha]: mapa }, { forzar: true });
+  // Poda diaria de versiones viejas con sufijo (cuando cada put creaba una URL
+  // nueva): con rutas fijas ya no se generan más. Best-effort, no bloquea.
+  let limpiadas = 0;
+  try {
+    limpiadas = await limpiarVersionesViejasBlob();
+  } catch {
+    // se poda en la próxima corrida
+  }
+  return Response.json({ fecha, guardados: Object.keys(mapa).length, tickers: Object.keys(mapa).sort(), limpiadas });
 }
