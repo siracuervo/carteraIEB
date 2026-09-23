@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import ValorSensible from "./ValorSensible";
-import { fechaLocal } from "@/lib/fechas";
-import { aISO } from "@/lib/accesosRapidosFecha";
+import { fechaLocal, hoyArgentina } from "@/lib/fechas";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
 const formatoPct = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 2, signDisplay: "exceptZero" });
@@ -17,12 +16,18 @@ function indiceHoy() {
 }
 
 function SelectorDias({ dias, seleccionado, onSeleccionar }) {
-  const hoyISO = aISO(new Date());
+  // Hoy en hora argentina (el server corre en UTC: con `new Date()` a la noche
+  // el miércoles ya figuraba como "no futuro" siendo martes).
+  const hoyART = hoyArgentina();
   return (
     <div className="flex shrink-0 gap-1">
       {dias.map((d, i) => {
         const activo = i === seleccionado;
-        const futuro = d.fecha > hoyISO;
+        const futuro = d.fecha > hoyART;
+        // Hoy sin datos (pre-sesión) tampoco se puede elegir: el día se
+        // habilita cuando abre la rueda. Los días pasados sin import se
+        // pueden tocar igual (muestran el aviso).
+        const deshabilitado = futuro || (d.fecha === hoyART && !d.disponible);
         let estilo;
         if (d.disponible) {
           estilo = activo
@@ -37,7 +42,7 @@ function SelectorDias({ dias, seleccionado, onSeleccionar }) {
           <button
             key={i}
             type="button"
-            disabled={futuro}
+            disabled={deshabilitado}
             onClick={() => onSeleccionar(i)}
             title={d.fecha}
             className="h-6 w-6 rounded-md text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40"
@@ -231,7 +236,7 @@ export default function EvolucionPatrimonio({ evolucion, evolucionSemana, semana
       <Fila
         etiqueta="Variación diaria"
         subtitulo={
-          diaActivo?.fecha > aISO(new Date())
+          diaActivo?.fecha > hoyArgentina()
             ? "Ese día todavía no llegó."
             : "No se importó el Portfolio de ese día (o es el primero del historial, sin uno previo para comparar)."
         }
