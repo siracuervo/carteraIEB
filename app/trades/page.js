@@ -1,7 +1,7 @@
 import { leerTransacciones, leerPortafolioHistorial, leerClasificaciones, leerNotasTrades, leerCierresDiarios, leerCierresManuales } from "@/lib/storage";
-import { resolverTickersConPortafolio, calcularTrades } from "@/lib/calculos";
+import { resolverTickersConPortafolio, calcularTrades, cierreManualVigente } from "@/lib/calculos";
 import { obtenerPrecios } from "@/lib/precios";
-import { aISO } from "@/lib/accesosRapidosFecha";
+import { hoyArgentina } from "@/lib/fechas";
 import { SLEEVES } from "@/lib/sleeves";
 import { TICKERS_NO_MERCADO } from "@/lib/clasificacion";
 import TablaTrades from "@/app/components/TablaTrades";
@@ -54,20 +54,17 @@ export default async function TradesPage({ searchParams }) {
       const p = ultimoCierre(tk);
       if (p != null) precios.set(tk, { precio: p, ultimo: p, moneda: "ARS", variacionDiariaPct: null });
     }
-    const hoyISOTrades = aISO(new Date());
-    const manualesHoy = cierresManuales[hoyISOTrades];
-    if (manualesHoy) {
-      for (const tk of tickersUnicos) {
-        const pHoy = manualesHoy[tk];
-        if (pHoy != null && pHoy > 0) precios.set(tk, { precio: pHoy, ultimo: pHoy, moneda: "ARS", variacionDiariaPct: null, cierreManual: true });
-      }
+    const ahoraTrades = new Date();
+    for (const tk of tickersUnicos) {
+      const manual = cierreManualVigente(cierresManuales, tk, ahoraTrades);
+      if (manual != null) precios.set(tk, { precio: manual.precio, ultimo: manual.precio, moneda: "ARS", variacionDiariaPct: null, cierreManual: true });
     }
   }
   const { cerrados: cerradosTodos, abiertos, resumen } = calcularTrades(transacciones, overrides, { sleeve: SLEEVES.TRADING, precios });
   const fechasVentas = cerradosTodos.map((t) => t.fechaVenta).filter(Boolean).sort();
   const fechasTrans = transacciones.map((t) => t.fecha).filter(Boolean).sort();
   const minFecha = fechasVentas[0] || fechasTrans[0] || null;
-  const hoyISO = aISO(new Date());
+  const hoyISO = hoyArgentina();
   const maxFecha = fechasVentas[fechasVentas.length - 1] || hoyISO;
   const dentroRango = (t) => {
     const f = t.fechaVenta;

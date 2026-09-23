@@ -1,6 +1,6 @@
 import { obtenerPrecios, obtenerPreciosDirecto, obtenerTipoCambioDolares } from "@/lib/precios";
 import { leerCierresManuales } from "@/lib/storage";
-import { aISO } from "@/lib/accesosRapidosFecha";
+import { cierreManualVigente } from "@/lib/calculos";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -33,14 +33,14 @@ export async function GET(request) {
     leerCierresManuales(),
   ]);
 
-  // Un cierre guardado a mano hoy (ej. SPCX) pisa la cotización viva: es el
-  // precio que el usuario fijó y vale para todo el día.
-  const hoy = aISO(new Date());
-  const manualesHoy = manuales[hoy] || {};
+  // Un cierre guardado a mano (ej. SPCX) pisa la cotización viva fuera de
+  // rueda: vale hasta que abra la próxima sesión (BYMA 10:30–17:00 ART).
+  // En rueda manda el vivo.
+  const ahoraPrecios = new Date();
   for (const tk of tickers) {
-    const pHoy = manualesHoy[tk] ?? manualesHoy[String(tk).toUpperCase()];
-    if (pHoy != null && pHoy > 0) {
-      cedear.set(tk, { precio: pHoy, ultimo: pHoy, moneda: "ARS", variacionDiariaPct: null, cierreManual: true });
+    const manual = cierreManualVigente(manuales, tk, ahoraPrecios);
+    if (manual != null) {
+      cedear.set(tk, { precio: manual.precio, ultimo: manual.precio, moneda: "ARS", variacionDiariaPct: null, cierreManual: true });
     }
   }
 

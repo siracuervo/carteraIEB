@@ -5,8 +5,10 @@ import NavTabs from "./components/NavTabs";
 import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
 import BotonActualizarTodo from "./components/BotonActualizarTodo";
 import BotonPrivacidad from "./components/BotonPrivacidad";
+import BotonTema from "./components/BotonTema";
 import RegistroSW from "./components/RegistroSW";
 import { ProveedorPrivacidad } from "./components/PrivacidadContext";
+import { ProveedorTema } from "./components/TemaContext";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -58,8 +60,13 @@ export default function RootLayout({ children }) {
         id="privacidad-inicial"
         strategy="beforeInteractive"
       >{`try{var d=document.documentElement;if(localStorage.getItem('iebCarteraOculto')==='1')d.classList.add('priv-todo');if(localStorage.getItem('iebCarteraOcultoTotal')==='1')d.classList.add('priv-total');}catch(e){}`}</Script>
+      <Script
+        id="tema-inicial"
+        strategy="beforeInteractive"
+      >{`try{var t=localStorage.getItem('sira-tema');if(t==='oscuro'||t==='claro'){document.documentElement.dataset.tema=t;var m=document.querySelector('meta[name="color-scheme"]');if(m)m.setAttribute('content',t==='oscuro'?'dark':'only light');}}catch(e){}`}</Script>
       <body className="min-h-full flex flex-col">
         <RegistroSW />
+        <ProveedorTema>
         <ProveedorPrivacidad>
           <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
@@ -80,6 +87,7 @@ export default function RootLayout({ children }) {
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <BotonActualizarTodo />
+                  <BotonTema />
                   <BotonPrivacidad />
                 </div>
               </div>
@@ -90,6 +98,7 @@ export default function RootLayout({ children }) {
                 <NavTabs />
               </div>
               <div className="ml-auto hidden items-center gap-2 sm:flex sm:gap-3">
+                <BotonTema />
                 <BotonPrivacidad />
                 <DolarCCLEnVivo parte="ccl" />
                 <BotonActualizarTodo />
@@ -99,6 +108,7 @@ export default function RootLayout({ children }) {
           </header>
           <div className="flex flex-1 flex-col">{children}</div>
         </ProveedorPrivacidad>
+        </ProveedorTema>
       </body>
     </html>
   );
