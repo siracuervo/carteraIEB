@@ -1,8 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
 import Script from "next/script";
 import NavTabs from "./components/NavTabs";
 import DolarCCLEnVivo from "./components/DolarCCLEnVivo";
+import EnlaceSiracartera from "./components/EnlaceSiracartera";
 import BotonActualizarTodo from "./components/BotonActualizarTodo";
 import BotonPrivacidad from "./components/BotonPrivacidad";
 import RegistroSW from "./components/RegistroSW";
@@ -64,9 +64,7 @@ export default function RootLayout({ children }) {
           <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
             <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6 sm:px-6 lg:px-8">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1 sm:hidden">
-                <Link href="/" className="btn-anim shrink-0 justify-self-start text-sm font-bold tracking-wide" style={{ color: "var(--marca)" }}>
-                  Siracartera
-                </Link>
+                <EnlaceSiracartera className="justify-self-start" />
                 <div className="flex min-w-0 justify-center">
                   <DolarCCLEnVivo parte="actualizacion" />
                 </div>
@@ -84,9 +82,7 @@ export default function RootLayout({ children }) {
                 </div>
               </div>
               <div className="hidden items-center gap-6 sm:flex">
-                <Link href="/" className="btn-anim shrink-0 text-sm font-bold tracking-wide" style={{ color: "var(--marca)" }}>
-                  Siracartera
-                </Link>
+                <EnlaceSiracartera />
                 <NavTabs />
               </div>
               <div className="ml-auto hidden items-center gap-2 sm:flex sm:gap-3">

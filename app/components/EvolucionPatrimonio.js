@@ -158,7 +158,16 @@ function Fila({ etiqueta, subtitulo, variacion }) {
  */
 export default function EvolucionPatrimonio({ evolucion, evolucionSemana, semanasEvolucion }) {
   const semanas = semanasEvolucion || [];
-  const [indiceDia, setIndiceDia] = useState(indiceHoy());
+  // El día de hoy solo se habilita cuando abre la sesión: si todavía no tiene
+  // dato (pre-sesión), se arranca en el último día disponible de la semana.
+  const [indiceDia, setIndiceDia] = useState(() => {
+    const ultima = semanas.length ? semanas[semanas.length - 1] : null;
+    const dias = ultima ? ultima.dias : (evolucionSemana || []);
+    const hoy = indiceHoy();
+    if (dias[hoy]?.disponible) return hoy;
+    const ultimoDisponible = dias.reduce((acc, d, j) => (d.disponible ? j : acc), -1);
+    return ultimoDisponible >= 0 ? ultimoDisponible : hoy;
+  });
   const [indiceSemana, setIndiceSemana] = useState(() => (semanas.length ? semanas.length - 1 : 0));
 
   if (!evolucion) return null;

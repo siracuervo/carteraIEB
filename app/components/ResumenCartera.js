@@ -48,7 +48,7 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
               {(composicion ?? []).map((grupo) => (
                 <div key={grupo.etiqueta} className="min-w-0 flex-1 text-center">
                   <div className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>{grupo.etiqueta}</div>
-                  <div className="mt-0.5 text-lg font-semibold tabular-nums sm:text-xl" style={{ color: "var(--text-primary)" }}>
+                  <div className="mt-0.5 text-sm font-semibold tabular-nums" style={{ color: "var(--text-secondary)" }}>
                     <ValorSensible>{formatoProporcion.format(grupo.pct)}</ValorSensible>
                   </div>
                 </div>
