@@ -37,6 +37,8 @@ export default async function CarteraPage({ searchParams }) {
             serieCostoLargo={datos.serieCostoLargo}
             serieCostoRentaFija={datos.serieCostoRentaFija}
             fechaCorteSleeves={datos.fechaCorteSleeves}
+            efectivoSleeves={datos.efectivoSleeves}
+            tenencias={tenencias}
           />
 
           {datos.fuentePosiciones === "transacciones" && (

@@ -12,7 +12,7 @@ const formatoFechaCortaART = new Intl.DateTimeFormat("es-AR", { day: "2-digit", 
 
 const CLASE_TARJETA = "flex flex-col justify-center rounded-lg border p-3";
 
-export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evolucionSemana, semanasEvolucion, serieEvolucion, snapshots, transacciones, fondos, traspasos, serieLargo, serieTrading, serieEfectivoTrading, serieEfectivoLargo, serieRentaFija, serieEfectivoRentaFija, serieCostoTrading, serieCostoLargo, serieCostoRentaFija, fechaCorteSleeves }) {
+export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evolucionSemana, semanasEvolucion, serieEvolucion, snapshots, transacciones, fondos, traspasos, serieLargo, serieTrading, serieEfectivoTrading, serieEfectivoLargo, serieRentaFija, serieEfectivoRentaFija, serieCostoTrading, serieCostoLargo, serieCostoRentaFija, fechaCorteSleeves, efectivoSleeves, tenencias }) {
   const {
     valorTotalARS,
     dividendosTotalARS,
@@ -20,6 +20,19 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
     composicion,
   } = resumen;
   const hoy = formatoFechaCortaART.format(new Date());
+  const valorTradingARS = (() => {
+    if (!tenencias?.length) return null;
+    // Suma posiciones + caja de trading (las filas de PESOS · Trading ya vienen con sleeve)
+    let total = 0;
+    let hay = false;
+    for (const t of tenencias) {
+      if (t.sleeve !== "trading") continue;
+      if (t.valorActualARS == null) continue;
+      hay = true;
+      total += t.valorActualARS;
+    }
+    return hay ? total : null;
+  })();
 
   return (
     <div>
@@ -40,9 +53,24 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
           </div>
 
           <div className={`${CLASE_TARJETA} flex-1 p-2 sm:p-3 lg:min-w-56`} style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
-            <div className="mb-3 text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Composición de Portafolio</div>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Valor de Trading</div>
+              <div className="text-xs font-semibold tabular-nums sm:text-sm" style={{ color: "var(--text-primary)" }}>{hoy}</div>
+            </div>
+            <div className="mt-1 text-2xl font-semibold tabular-nums sm:text-3xl" style={{ color: "var(--text-primary)" }}>
+              <ValorSensible ambito="total">{valorTradingARS != null ? formatoARS.format(valorTradingARS) : "—"}</ValorSensible>
+            </div>
+            <ValorSensible ambito="total">
+              <ValorEnDolarOficial valorARS={valorTradingARS} />
+            </ValorSensible>
+          </div>
+        </div>
+
+        <div className="col-span-1 flex h-full flex-col gap-3 sm:col-span-2 lg:col-span-1">
+          <div className={`${CLASE_TARJETA} p-2 sm:p-3`} style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}>
+            <div className="text-sm font-semibold" style={{ color: "var(--text-secondary)" }}>Composición de Portafolio</div>
             <div
-              className="flex items-start justify-between gap-2 sm:gap-3"
+              className="mt-3 flex items-start justify-between gap-2 sm:gap-3"
               title="Proporciones sobre el valor en ARS de las posiciones valuadas"
             >
               {(composicion ?? []).map((grupo) => (
@@ -55,10 +83,9 @@ export default function ResumenCartera({ resumen, tipoCambioCCL, evolucion, evol
               ))}
             </div>
           </div>
-        </div>
-
-        <div className="col-span-1 sm:col-span-2 lg:col-span-1">
-          <EvolucionPatrimonio evolucion={evolucion} evolucionSemana={evolucionSemana} semanasEvolucion={semanasEvolucion} />
+          <div className="flex-1 min-h-0">
+            <EvolucionPatrimonio evolucion={evolucion} evolucionSemana={evolucionSemana} semanasEvolucion={semanasEvolucion} />
+          </div>
         </div>
         <div className="col-span-1 min-w-0 sm:col-span-2 lg:col-span-1">
           <PanelEvolucionPatrimonio serie={serieEvolucion} snapshots={snapshots} transacciones={transacciones} fondos={fondos} traspasos={traspasos} serieLargo={serieLargo} serieTrading={serieTrading} serieEfectivoTrading={serieEfectivoTrading} serieEfectivoLargo={serieEfectivoLargo} serieRentaFija={serieRentaFija} serieEfectivoRentaFija={serieEfectivoRentaFija} serieCostoTrading={serieCostoTrading} serieCostoLargo={serieCostoLargo} serieCostoRentaFija={serieCostoRentaFija} fechaCorteSleeves={fechaCorteSleeves} />
