@@ -21,18 +21,21 @@ function esAssetPublico(pathname) {
   );
 }
 
+/**
+ * Rutas que se autentican solas con `Authorization: Bearer <CRON_SECRET>`
+ * (cron de Vercel, migración): el proxy NO les pide Basic, porque en un header
+ * entra una sola credencial y los llamadores automáticos no tienen la de Basic.
+ * La ruta igual rechaza sin el Bearer correcto.
+ */
+function esRutaConBearerPropio(pathname) {
+  return pathname === "/api/cron/cierres" || pathname === "/api/migrar-r2";
+}
+
 const DIAS_COOKIE = 90;
 
 export async function proxy(request) {
-  // El cron de Vercel guarda los cierres diarios sin sesión: se autentica con
-  // su propio secret (header `Authorization: Bearer <CRON_SECRET>`).
-  if (request.nextUrl.pathname === "/api/cron/cierres" && process.env.CRON_SECRET) {
-    if (request.headers.get("authorization") === `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.next();
-    }
-  }
-
   if (esAssetPublico(request.nextUrl.pathname)) return NextResponse.next();
+  if (esRutaConBearerPropio(request.nextUrl.pathname)) return NextResponse.next();
 
   const usuario = process.env.AUTH_USER;
   const clave = process.env.AUTH_PASS;

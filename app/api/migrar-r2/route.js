@@ -11,11 +11,12 @@ export const maxDuration = 60;
  * Después se borra esta ruta y la dependencia @vercel/blob.
  */
 export async function GET(request) {
-  if (process.env.CRON_SECRET) {
-    const auth = request.headers.get("authorization") || "";
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return Response.json({ error: "No autorizado." }, { status: 401 });
-    }
+  if (!process.env.CRON_SECRET) {
+    return Response.json({ error: "CRON_SECRET sin configurar." }, { status: 401 });
+  }
+  const auth = request.headers.get("authorization") || "";
+  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+    return Response.json({ error: "No autorizado." }, { status: 401 });
   }
 
   const resumen = {};
