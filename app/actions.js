@@ -233,6 +233,24 @@ export async function actualizarCierreManualAction(prevState, formData) {
   return { error: null, exito: { ticker, fecha, precio } };
 }
 
+/**
+ * Repara un punto del gráfico pisado por un auto-guardado: elimina el punto
+ * auto-guardado de esa fecha para que el snapshot se reconstruya desde los
+ * cierres/imports (ej. el 22/9 superpuesto con el valor de la mañana siguiente).
+ */
+export async function repararPuntoAuto(prevState, formData) {
+  const fecha = String(formData.get("fecha") || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+    return { error: "Elegí una fecha válida.", exito: null };
+  }
+  const { eliminarPuntoAuto } = await import("@/lib/storage");
+  const ok = await eliminarPuntoAuto(fecha);
+  if (!ok) return { error: "Esa fecha no tiene punto auto-guardado para reparar.", exito: null };
+  revalidatePath("/", "layout");
+  revalidatePath("/movimientos");
+  return { error: null, exito: { fecha } };
+}
+
 function aNumero(texto) {
   const limpio = String(texto || "").trim().replace(",", ".");
   if (!limpio) return null;

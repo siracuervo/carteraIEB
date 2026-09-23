@@ -1,9 +1,10 @@
 import { leerTransacciones, leerPortafolioHistorial, leerMovimientosFondos, leerClasificaciones, leerCierresManuales, leerImportaciones, claveTransaccion } from "@/lib/storage";
 import { fechaLocal } from "@/lib/fechas";
 import { resolverTickersConPortafolio } from "@/lib/calculos";
-import { importarOperacionesDelDia, guardarCierreManual, importarRespaldo } from "@/app/actions";
+import { importarOperacionesDelDia, guardarCierreManual, importarRespaldo, repararPuntoAuto } from "@/app/actions";
 import FormularioImportar from "@/app/components/FormularioImportar";
 import FormularioCierreManual from "@/app/components/FormularioCierreManual";
+import FormularioRepararPunto from "@/app/components/FormularioRepararPunto";
 import FormularioOperacionManual from "@/app/components/FormularioOperacionManual";
 import FormularioFondos from "@/app/components/FormularioFondos";
 import ListaFondos from "@/app/components/ListaFondos";
@@ -131,6 +132,14 @@ export default async function MovimientosPage() {
       >
         <FormularioCierreManual accion={guardarCierreManual} />
         <ListaCierresManuales cierres={cierresManuales} />
+      </SeccionCarga>
+
+      <SeccionCarga
+        titulo="Reparar punto del gráfico"
+        abierta={false}
+        descripcion="Si un día del gráfico muestra un valor pisado por un auto-guardado (ej. la mañana siguiente superpuesta), eliminá su punto auto-guardado y se reconstruye desde los cierres y Portfolios."
+      >
+        <FormularioRepararPunto accion={repararPuntoAuto} />
       </SeccionCarga>
 
       <SeccionCarga
