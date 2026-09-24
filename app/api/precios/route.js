@@ -39,8 +39,8 @@ export async function GET(request) {
     );
   }
 
-  // Un cierre guardado a mano (ej. SPCX) pisa la cotización viva fuera de
-  // rueda: vale hasta que abra la próxima sesión (BYMA 10:30–17:00 ART).
+  // Un cierre guardado a mano para HOY (ej. SPCX) pisa la cotización viva fuera
+  // de rueda; los de otras fechas no aplican (cada uno vale para su rueda).
   // En rueda manda el vivo.
   const ahoraPrecios = new Date();
   for (const tk of tickers) {
