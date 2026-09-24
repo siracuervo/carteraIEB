@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ieb-cartera",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "ieb-cartera"
+    }
+  ],
+  // Cron diario lun-vie 20:05 ART (= 23:05 UTC). Reemplaza vercel.json.
+  // Llama a /api/cron/cierres con Authorization: Bearer <CRON_SECRET>.
+  "triggers": {
+    "crons": ["5 23 * * 1-5"]
+  },
+  "images": {
+    "binding": "IMAGES"
+  }
+}

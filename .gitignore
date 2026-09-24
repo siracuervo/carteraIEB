@@ -32,9 +32,16 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# cloudflare dev vars (local only, pueden tener secretos)
+.dev.vars
 
 # vercel
 .vercel
+
+# opennext cloudflare build output
+.open-next
+# estado local de wrangler (login, previews)
+.wrangler/
 
 # datos de la cartera (privados, no se versionan)
 /data
