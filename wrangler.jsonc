@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ieb-cartera",
+  "name": "carteraieb",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -11,7 +11,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "ieb-cartera"
+      "service": "carteraieb"
     }
   ],
   // Cron diario lun-vie 20:05 ART (= 23:05 UTC). Reemplaza vercel.json.
