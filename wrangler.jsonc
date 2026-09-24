@@ -4,6 +4,9 @@
   "main": "./worker.ts",
   "compatibility_date": "2025-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // No borrar las vars/secrets cargadas en el dashboard en cada deploy.
+  // Sin esto, Workers Builds las wipea porque el config no define [vars].
+  "keep_vars": true,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
