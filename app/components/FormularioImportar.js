@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { parsearOperacionesDelDiaCliente } from "@/lib/parseOperacionesDelDiaCliente";
 
 const estadoInicial = { error: null, exito: null };
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -20,9 +21,20 @@ function mensajeExito(tipo, exito) {
   return `Listo — ${exito.agregadas} operaciones nuevas, ${exito.actualizadas} completadas con datos del otro archivo.`;
 }
 
-export default function FormularioImportar({ accion, tipo, id, tituloDropzone, ayudaDropzone, textoBoton = "Importar", accept = ".xlsx", multiple = true }) {
+export default function FormularioImportar({
+  accion,
+  tipo,
+  id,
+  tituloDropzone,
+  ayudaDropzone,
+  textoBoton = "Importar",
+  accept = ".xlsx",
+  multiple = true,
+  parseoCliente = false,
+}) {
   const [estado, formAction, pendiente] = useActionState(accion, estadoInicial);
   const [archivos, setArchivos] = useState([]);
+  const [transaccionesParseadas, setTransaccionesParseadas] = useState([]);
   const formRef = useRef(null);
 
   // Después de importar con éxito, colapsa de nuevo la sección "Portafolio actual"
@@ -34,8 +46,36 @@ export default function FormularioImportar({ accion, tipo, id, tituloDropzone, a
     }
   }, [estado?.exito]);
 
+  const manejarSeleccion = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setArchivos(files.map((f) => f.name));
+
+    if (parseoCliente && tipo === "operaciones-del-dia") {
+      const todas = [];
+      for (const file of files) {
+        const buffer = await file.arrayBuffer();
+        const txs = parsearOperacionesDelDiaCliente(buffer);
+        todas.push(...txs);
+      }
+      setTransaccionesParseadas(todas);
+    } else {
+      setTransaccionesParseadas([]);
+    }
+  };
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    if (transaccionesParseadas.length) {
+      formData.set("transaccionesJson", JSON.stringify(transaccionesParseadas));
+      formData.set("archivosNombres", JSON.stringify(archivos));
+    }
+    formAction(formData);
+  };
+
   return (
-    <form ref={formRef} action={formAction} className="space-y-3">
+    <form ref={formRef} onSubmit={onSubmit} className="space-y-3">
       <label
         htmlFor={id}
         className="block cursor-pointer rounded-lg border border-dashed p-6 text-center transition-colors"
@@ -54,6 +94,11 @@ export default function FormularioImportar({ accion, tipo, id, tituloDropzone, a
             ))}
           </ul>
         )}
+        {transaccionesParseadas.length > 0 && (
+          <p className="mt-2 text-xs" style={{ color: "var(--text-secondary)" }}>
+            {transaccionesParseadas.length} operación(es) detectada(s) en el/los archivo(s).
+          </p>
+        )}
         <input
           id={id}
           type="file"
@@ -62,7 +107,7 @@ export default function FormularioImportar({ accion, tipo, id, tituloDropzone, a
           multiple={multiple}
           required
           className="sr-only"
-          onChange={(e) => setArchivos(Array.from(e.target.files).map((f) => f.name))}
+          onChange={manejarSeleccion}
         />
       </label>
 

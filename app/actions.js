@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo, actualizarMovimientoFondo, agregarTraspasoEfectivo as guardarTraspaso, eliminarTraspasoEfectivo, guardarNotaTrade as persistirNotaTrade } from "@/lib/storage";
 import { clasificar, CLASES } from "@/lib/clasificacion";
-import { parseArchivoIEB } from "@/lib/parseIEB";
 import { parsePortafolio } from "@/lib/parsePortafolio";
 
 export async function actualizarClasificacion(formData) {
@@ -117,34 +116,67 @@ export async function importarMovimientos(prevState, formData) {
  * Portafolio actualiza las posiciones, este solo agrega operaciones al historial.
  */
 export async function importarOperacionesDelDia(prevState, formData) {
-  const archivos = formData.getAll("archivos").filter((f) => f && typeof f === "object" && f.size > 0);
-  if (!archivos.length) {
-    return { error: "Seleccioná al menos un archivo de 'Operaciones del día' (.xlsx).", exito: null };
+  const transaccionesJson = formData.get("transaccionesJson");
+  const archivosNombresRaw = formData.get("archivosNombres");
+
+  let transaccionesPlanas;
+  let archivosNombres = [];
+  const errores = [];
+
+  if (transaccionesJson) {
+    // Llegó ya parseado desde el cliente (Cloudflare / sin exceljs en servidor).
+    try {
+      transaccionesPlanas = JSON.parse(transaccionesJson);
+    } catch {
+      return { error: "No se pudieron leer los datos de las operaciones.", exito: null };
+    }
+    try { archivosNombres = JSON.parse(archivosNombresRaw || "[]"); } catch {}
+    if (!Array.isArray(transaccionesPlanas) || transaccionesPlanas.length === 0) {
+      return { error: "El archivo no trae operaciones de compra/venta.", exito: null };
+    }
+  } else {
+    // Llegó archivos crudos (entorno Node.js con exceljs disponible).
+    const archivos = formData.getAll("archivos").filter((f) => f && typeof f === "object" && f.size > 0);
+    if (!archivos.length) {
+      return { error: "Seleccioná al menos un archivo de 'Operaciones del día' (.xlsx).", exito: null };
+    }
+    archivosNombres = archivos.map((a) => a.name);
+    // Import dinámico: exceljs solo se carga en entornos Node.js, nunca en Cloudflare.
+    const { parseArchivoIEB } = await import("@/lib/parseIEB");
+    const transaccionesPorArchivo = [];
+    for (const archivo of archivos) {
+      try {
+        const buffer = Buffer.from(await archivo.arrayBuffer());
+        const { formato, transacciones } = await parseArchivoIEB(buffer);
+        if (formato !== "operaciones-del-dia") {
+          throw new Error("no es un export de 'Operaciones del día' (usá la otra sección para otros formatos)");
+        }
+        if (!transacciones?.length) {
+          throw new Error("el archivo no trae operaciones de compra/venta");
+        }
+        transaccionesPorArchivo.push(...transacciones);
+      } catch (err) {
+        errores.push(`${archivo.name}: ${err.message}`);
+      }
+    }
+    transaccionesPlanas = transaccionesPorArchivo;
   }
 
   const importId = `imp-${Date.now().toString(36)}-${Math.round(Math.random() * 1e6).toString(36)}`;
   let agregadasTotal = 0;
   let actualizadasTotal = 0;
-  const errores = [];
   const dias = new Set();
 
-  for (const archivo of archivos) {
-    try {
-      const buffer = Buffer.from(await archivo.arrayBuffer());
-      const { formato, transacciones } = await parseArchivoIEB(buffer);
-      if (formato !== "operaciones-del-dia") {
-        throw new Error("no es un export de 'Operaciones del día' (usá la otra sección para otros formatos)");
-      }
-      if (!transacciones?.length) {
-        throw new Error("el archivo no trae operaciones de compra/venta");
-      }
-      for (const t of transacciones) if (t?.fecha) dias.add(t.fecha);
-      const { agregadas, actualizadas } = await mergeTransacciones(transacciones, { importId });
-      agregadasTotal += agregadas;
-      actualizadasTotal += actualizadas;
-    } catch (err) {
-      errores.push(`${archivo.name}: ${err.message}`);
-    }
+  for (const t of transaccionesPlanas) {
+    if (t?.fecha) dias.add(t.fecha);
+  }
+
+  try {
+    const { agregadas, actualizadas } = await mergeTransacciones(transaccionesPlanas, { importId });
+    agregadasTotal = agregadas;
+    actualizadasTotal = actualizadas;
+  } catch (err) {
+    errores.push(err.message);
   }
 
   if (errores.length && agregadasTotal === 0 && actualizadasTotal === 0) {
@@ -156,7 +188,7 @@ export async function importarOperacionesDelDia(prevState, formData) {
     await registrarImportacion({
       id: importId,
       tipo: "operaciones-del-dia",
-      archivos: archivos.map((a) => a.name),
+      archivos: archivosNombres,
       agregadas: agregadasTotal,
       actualizadas: actualizadasTotal,
       dias: [...dias].sort(),

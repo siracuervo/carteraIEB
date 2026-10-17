@@ -183,6 +183,7 @@ export default async function MovimientosPage() {
           tituloDropzone="Elegí el export de Operaciones del día"
           ayudaDropzone=".xlsx — podés seleccionar más de uno; se agregan como compras y ventas sin duplicar"
           textoBoton="Importar como compras y ventas"
+          parseoCliente={true}
         />
         <ListaImportaciones importaciones={importaciones} />
       </SeccionCarga>
