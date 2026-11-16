@@ -9,6 +9,7 @@ import ValorSensible from "./ValorSensible";
 import BotonOrden from "./BotonOrden";
 import IconoCartera from "./IconoCartera";
 import EditarPPP from "./EditarPPP";
+import BotonMoverSleeve from "./BotonMoverSleeve";
 import { EVENTO_ACTUALIZAR } from "./BotonActualizarTodo";
 
 const formatoARS = new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 });
@@ -391,6 +392,11 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
             {t.usaPrecioManual && (
               <div className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>precio cargado a mano</div>
             )}
+            {!esHistorico && !t.esCash && t.claseActivo !== CLASES.BONO_SOBERANO && (
+              <div className="mt-0.5">
+                <BotonMoverSleeve clave={t.clave} sleeve={t.sleeve} />
+              </div>
+            )}
           </td>
           <td className="px-2 py-1 align-middle tabular-nums" style={{ color: "var(--text-secondary)" }}>
             {t.esCash ? "—" : <ValorSensible>{t.cantidad.toLocaleString("es-AR", { maximumFractionDigits: 2 })}</ValorSensible>}
@@ -524,6 +530,11 @@ export default function TablaTenencias({ tenencias, diasTenencia, diaTenencia, e
         )}
         {t.usaPrecioManual && (
           <div className="mt-1 text-xs" style={{ color: "var(--text-muted)" }}>precio cargado a mano</div>
+        )}
+        {!esHistorico && !t.esCash && t.claseActivo !== CLASES.BONO_SOBERANO && (
+          <div className="mt-1">
+            <BotonMoverSleeve clave={t.clave} sleeve={t.sleeve} />
+          </div>
         )}
         {t.pppPendienteIEB && !esHistorico && !t.esCash && (
           <div className="mt-1">

@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo, actualizarMovimientoFondo, agregarTraspasoEfectivo as guardarTraspaso, eliminarTraspasoEfectivo, guardarNotaTrade as persistirNotaTrade } from "@/lib/storage";
-import { clasificar, CLASES } from "@/lib/clasificacion";
+import { guardarClasificacion, mergeTransacciones, agregarAlPortafolioHistorial, mergeCierresDiarios, actualizarTransaccion, claveTransaccion, agregarMovimientoFondo as guardarMovimientoFondo, eliminarMovimientoFondo, actualizarMovimientoFondo, agregarTraspasoEfectivo as guardarTraspaso, eliminarTraspasoEfectivo, guardarNotaTrade as persistirNotaTrade, leerTransacciones, guardarSleevePosicion } from "@/lib/storage";
+import { clasificar, CLASES, claveActivo } from "@/lib/clasificacion";
 import { parsePortafolio } from "@/lib/parsePortafolio";
 
 export async function actualizarClasificacion(formData) {
@@ -30,6 +30,32 @@ export async function actualizarClasificacion(formData) {
 
   await guardarClasificacion(clave, datos);
   revalidatePath("/", "layout");
+}
+
+/**
+ * Mueve una posición entera (todos los lotes de un activo, incluida la apertura
+ * que sale del último Portafolio) de trading a largo plazo o viceversa. Se guarda
+ * como override por clave: el ledger de sleeves (lotes, ventas y caja) lo respeta
+ * sin tocar las operaciones. Los bonos siempre viven en renta fija.
+ */
+export async function cambiarSleevePosicion(clave, sleeve) {
+  if (!clave || typeof clave !== "string") {
+    return { ok: false, error: "Falta la posición a mover." };
+  }
+  if (sleeve !== "trading" && sleeve !== "largo") {
+    return { ok: false, error: "Solo se puede mover entre trading y largo plazo (los bonos van siempre a renta fija)." };
+  }
+  // Rechazar bonos: la posición queda en renta fija sin importar el override.
+  const transacciones = await leerTransacciones();
+  const esBono = transacciones.some(
+    (t) => claveActivo(t) === clave && clasificar({ activo: t.activo, ticker: t.ticker, operacion: t.operacion }).claseActivo === CLASES.BONO_SOBERANO
+  );
+  if (esBono) {
+    return { ok: false, error: "Los bonos van siempre a renta fija: no se pueden mover a otra estrategia." };
+  }
+  await guardarSleevePosicion(clave, sleeve);
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 export async function importarPortafolio(prevState, formData) {
